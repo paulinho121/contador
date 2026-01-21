@@ -148,7 +148,7 @@ const App: React.FC = () => {
                     <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                     <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
                   </div>
-                  <span className="text-[9px] md:text-[11px] text-indigo-300 font-bold uppercase tracking-[0.2em] animate-pulse">Consultando Redes...</span>
+                  <span className="text-[9px] md:text-[11px] text-indigo-300 font-bold uppercase tracking-[0.2em] animate-pulse">Escrevendo...</span>
                 </div>
               </div>
             )}
