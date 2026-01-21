@@ -1,3 +1,4 @@
+import { VOICE_INSTRUCTION } from './geminiService';
 
 export class GeminiLiveService {
     private socket: WebSocket | null = null;
@@ -76,7 +77,7 @@ export class GeminiLiveService {
                 },
                 systemInstruction: {
                     parts: [{
-                        text: "Você é o Dr. Contador, um especialista em contabilidade brasileira. Você está em uma chamada de vídeo/áudio em tempo real. Responda de forma concisa, educada e extremamente profissional. Use as informações de contexto que eu te enviar."
+                        text: VOICE_INSTRUCTION
                     }]
                 }
             }
