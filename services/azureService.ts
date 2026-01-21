@@ -41,30 +41,43 @@ class AzureService {
 
     async addKnowledge(item: any) {
         if (!this.client) throw new Error("Azure não configurado");
-        const database = this.client.database(this.databaseId);
-        const container = database.container(this.containerId);
 
-        // Garantir que item tenha id
-        const itemToSave = {
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-            ...item
-        };
+        try {
+            console.log("Iniciando sincronização com Azure Cosmos DB...");
 
-        const { resource } = await container.items.create(itemToSave);
-        return resource;
+            // Garantir que Banco e Container existam antes de salvar
+            const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+            const { container } = await database.containers.createIfNotExists({ id: this.containerId });
+
+            const itemToSave = {
+                id: crypto.randomUUID(),
+                partitionKey: "global", // Adicionando uma partition key padrão para escalabilidade
+                timestamp: new Date().toISOString(),
+                ...item
+            };
+
+            console.log("Salvando item no container...");
+            const { resource } = await container.items.create(itemToSave);
+            console.log("Sincronização concluída com sucesso!");
+            return resource;
+        } catch (error) {
+            console.error("Falha na sincronização Azure:", error);
+            throw error;
+        }
     }
 
     async getKnowledge() {
         if (!this.client) return [];
         try {
-            const database = this.client.database(this.databaseId);
-            const container = database.container(this.containerId);
+            const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+            const { container } = await database.containers.createIfNotExists({ id: this.containerId });
 
+            console.log("Buscando conhecimentos na nuvem...");
             const { resources } = await container.items
                 .query("SELECT * from c ORDER BY c.timestamp DESC")
                 .fetchAll();
 
+            console.log(`Encontrados ${resources.length} itens de conhecimento.`);
             return resources;
         } catch (error) {
             console.error("Erro ao buscar conhecimentos:", error);
