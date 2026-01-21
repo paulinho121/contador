@@ -24,9 +24,6 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log("DEBUG - App Initialization");
-    console.log("VITE_GEMINI_API_KEY defined:", !!import.meta.env.VITE_GEMINI_API_KEY);
-    console.log("VITE_AZURE_COSMOS_CONNECTION_STRING defined:", !!import.meta.env.VITE_AZURE_COSMOS_CONNECTION_STRING);
     scrollToBottom();
   }, [messages]);
 

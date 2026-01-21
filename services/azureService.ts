@@ -78,11 +78,16 @@ class AzureService {
 
             console.log("Buscando conhecimentos na nuvem...");
             const { resources } = await container.items
-                .query("SELECT * from c ORDER BY c.timestamp DESC")
+                .query("SELECT * from c")
                 .fetchAll();
 
-            console.log(`Encontrados ${resources.length} itens de conhecimento.`);
-            return resources;
+            // Ordenação local para evitar erros de índice não configurado
+            const sortedResources = resources.sort((a, b) =>
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+
+            console.log(`Encontrados ${sortedResources.length} itens de conhecimento.`);
+            return sortedResources;
         } catch (error) {
             console.error("Erro ao buscar conhecimentos:", error);
             return [];
