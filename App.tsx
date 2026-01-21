@@ -24,6 +24,9 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log("DEBUG - App Initialization");
+    console.log("VITE_GEMINI_API_KEY defined:", !!import.meta.env.VITE_GEMINI_API_KEY);
+    console.log("VITE_AZURE_COSMOS_CONNECTION_STRING defined:", !!import.meta.env.VITE_AZURE_COSMOS_CONNECTION_STRING);
     scrollToBottom();
   }, [messages]);
 
@@ -109,8 +112,8 @@ const App: React.FC = () => {
               <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in group`}>
 
                 <div className={`relative max-w-[85%] md:max-w-[80%] rounded-3xl p-6 md:p-8 transition-all duration-300 ${m.role === 'user'
-                    ? 'bg-indigo-600/10 border border-indigo-500/20 text-indigo-50 shadow-indigo-500/5'
-                    : 'bg-white/5 border border-white/10 text-slate-100 shadow-white/5'
+                  ? 'bg-indigo-600/10 border border-indigo-500/20 text-indigo-50 shadow-indigo-500/5'
+                  : 'bg-white/5 border border-white/10 text-slate-100 shadow-white/5'
                   } backdrop-blur-3xl`}>
 
                   {/* Interaction Status */}
