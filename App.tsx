@@ -1,30 +1,22 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import Header from './components/Header';
-import KnowledgeManager from './components/KnowledgeManager';
 import { Message } from './types';
 import { geminiService } from './services/geminiService';
 import VoiceConsultant from './components/VoiceConsultant';
+import KnowledgeManager from './components/KnowledgeManager';
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Olá. Sou o **Dr. Contador**, seu consultor doutor em contabilidade. \n\nEstou à sua disposição para fornecer pareceres técnicos e fundamentação legal para suas dúvidas contábeis e tributárias. Como posso auxiliá-lo hoje?',
+      content: 'Olá. Sou o **Dr. Contador**. Estou pronto para processar sua análise contábil.',
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [context, setContext] = useState(`
-- Simples Nacional: Regime unificado de tributos (LC 123/2006). Analogia: Uma única "cesta" de impostos em vez de vários boletos separados.
-- ICMS (Imposto sobre Circulação de Mercadorias e Serviços): Imposto estadual. Em SP, alíquota interna padrão é 18% (Art. 52 RICMS/SP).
-- Pró-labore: Remuneração do sócio que trabalha na empresa. Diferente de dividendos, incide INSS (11%) e IRRF conforme tabela.
-- DRE (Demonstração do Resultado): Relatório econômico. Mostra se a operação deu lucro. Analogia: O placar final de um jogo.
-- Balanço Patrimonial: Registro contábil de Ativos (bens e direitos) e Passivos (obrigações). Analogia: Uma foto de tudo que você tem vs. tudo que deve.
-`);
-
+  const [context, setContext] = useState(``);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -68,190 +60,130 @@ const App: React.FC = () => {
 
   const handleReset = () => {
     geminiService.resetSession();
-    setMessages([
-      {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: 'Sessão reiniciada. Como posso ajudar com sua próxima dúvida contábil?',
-        timestamp: new Date()
-      }
-    ]);
+    setMessages([{
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: 'Base de dados resetada. Iniciando nova análise.',
+      timestamp: new Date()
+    }]);
   };
 
-  const quickTerms = ["Simples Nacional", "ICMS em SP", "Cálculo Pró-labore", "Balanço vs DRE"];
-
-
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="relative min-h-screen flex flex-col text-slate-200 overflow-hidden font-sans selection:bg-indigo-500/30">
+      {/* Neural Background */}
+      <div className="neural-bg">
+        <div className="neural-orb orb-1"></div>
+        <div className="neural-orb orb-2"></div>
+        <div className="neural-orb orb-3"></div>
+        {/* Logo Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+          <img src="/logo.png" className="w-[40vw] grayscale blur-sm" alt="watermark" />
+        </div>
+      </div>
+
       <Header />
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-10">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8 group">
-          <KnowledgeManager onKnowledgeUpdate={setContext} />
-          <div className="flex items-center gap-4">
-            <VoiceConsultant context={context} />
-            <button
-              onClick={handleReset}
-              className="text-slate-400 hover:text-red-500 text-xs font-bold flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200/60 shadow-sm transition-all hover:shadow-md hover:border-red-100 active:scale-95"
-              title="Limpar memória da conversa"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-              LIMPAR SESSÃO
-            </button>
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 md:px-0 flex flex-col pt-32 pb-8 h-screen relative z-10">
+
+        {/* Top Controls Float */}
+        <div className="fixed top-8 right-8 z-[60] flex items-center gap-3">
+          <VoiceConsultant context={context} />
+          <button
+            onClick={handleReset}
+            className="w-12 h-12 rounded-2xl glass-button flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/40 transition-all shadow-xl"
+            title="Novo Atendimento"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+          </button>
+          <div className="md:block hidden">
+            <KnowledgeManager onKnowledgeUpdate={setContext} />
           </div>
         </div>
 
-        <div className="premium-card premium-shadow flex flex-col h-[75vh] animate-fade-in">
-          {/* Chat Header Info */}
-          <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200/50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l4-4V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v10z" /><path d="M3 21v-8a2 2 0 0 1 2-2h2" /></svg>
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">Gabinete Digital</h3>
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Doutor em Contabilidade Online</p>
-              </div>
-            </div>
-            <div className="flex -space-x-2">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">AI</div>
-              ))}
-            </div>
-          </div>
+        {/* Chat Hub */}
+        <div className="flex-1 flex flex-col rounded-3xl overflow-hidden glass-panel border-white/5 shadow-2xl relative">
 
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-white/40">
+          {/* Messages Stream */}
+          <div className="flex-1 overflow-y-auto p-6 md:p-12 space-y-10 scrollbar-hide">
             {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
-              >
-                <div
-                  className={`max-w-[85%] md:max-w-[70%] rounded-3xl p-5 premium-shadow ${m.role === 'user'
-                    ? 'message-user'
-                    : 'message-assistant'
-                    }`}
-                >
-                  <div className={`prose prose-sm max-w-none ${m.role === 'user' ? 'prose-invert font-medium' : 'prose-slate'}`}>
-                    {m.content.split('\n').map((line, i) => {
-                      if (line.startsWith('🎓')) {
-                        return (
-                          <div key={i} className="bg-indigo-50/80 p-4 rounded-2xl border border-indigo-100 my-4 text-indigo-900 shadow-sm">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-lg">🎓</span>
-                              <span className="text-xs font-bold uppercase tracking-wider text-indigo-700">Parecer Técnico</span>
-                            </div>
-                            <p className="text-sm leading-relaxed">{line.replace('🎓 **PARECER TÉCNICO**:', '').replace('🎓', '').trim()}</p>
-                          </div>
-                        );
-                      }
-                      if (line.startsWith('⚖️')) {
-                        return (
-                          <div key={i} className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200 my-4 text-slate-800 shadow-sm">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-lg">⚖️</span>
-                              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Fundamentação Legal</span>
-                            </div>
-                            <p className="text-sm italic leading-relaxed">{line.replace('⚖️ **FUNDAMENTAÇÃO**:', '').replace('⚖️', '').trim()}</p>
-                          </div>
-                        );
-                      }
-                      if (line.startsWith('🚀')) {
-                        return (
-                          <div key={i} className="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-100 my-4 text-emerald-900 shadow-sm border-l-4 border-l-emerald-400">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-lg">🚀</span>
-                              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Plano de Ação</span>
-                            </div>
-                            <p className="text-sm font-semibold leading-relaxed">{line.replace('🚀 **PLANO DE AÇÃO**:', '').replace('🚀', '').trim()}</p>
-                          </div>
-                        );
-                      }
+              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in group`}>
 
-                      return <p key={i} className="mb-3 last:mb-0 leading-relaxed text-[15px]">{line}</p>;
-                    })}
+                <div className={`relative max-w-[85%] md:max-w-[80%] rounded-3xl p-6 md:p-8 transition-all duration-300 ${m.role === 'user'
+                    ? 'bg-indigo-600/10 border border-indigo-500/20 text-indigo-50 shadow-indigo-500/5'
+                    : 'bg-white/5 border border-white/10 text-slate-100 shadow-white/5'
+                  } backdrop-blur-3xl`}>
+
+                  {/* Interaction Status */}
+                  {m.role === 'assistant' && (
+                    <div className="absolute -left-2 -top-2 w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 border border-white/20 shadow-lg shadow-indigo-500/40"></div>
+                  )}
+
+                  <div className="prose prose-invert prose-sm md:prose-base max-w-none leading-relaxed tracking-wide">
+                    {m.content.split('\n').map((line, i) => (
+                      <p key={i} className="mb-3 last:mb-0 min-h-[1.5em] font-light">
+                        {line.split('**').map((part, index) => (
+                          index % 2 === 1 ? <strong key={index} className="font-bold text-indigo-300">{part}</strong> : part
+                        ))}
+                      </p>
+                    ))}
                   </div>
-                  <div className={`flex items-center gap-2 mt-4 opacity-50 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <span className="text-[10px] font-bold uppercase tracking-widest">
+
+                  <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.4em]">
+                      {m.role === 'user' ? 'Comando Recebido' : 'Resposta Neural'}
+                    </span>
+                    <span className="text-[10px] text-white/30 font-mono">
                       {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {m.role === 'assistant' && (
-                      <div className="flex gap-1">
-                        <button className="p-1 hover:text-indigo-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12" /><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" /></svg></button>
-                        <button className="p-1 hover:text-indigo-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg></button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
             ))}
+
             {isLoading && (
-              <div className="flex justify-start animate-pulse">
-                <div className="bg-white border border-slate-200 rounded-3xl rounded-tl-none p-5 shadow-sm flex items-center gap-4">
+              <div className="flex justify-start animate-fade-in">
+                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl px-6 py-4 flex items-center gap-4 backdrop-blur-md">
                   <div className="flex gap-1.5">
-                    <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></span>
+                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
                   </div>
-                  <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Processando Legislação...</span>
+                  <span className="text-[11px] text-indigo-300 font-bold uppercase tracking-[0.2em] animate-pulse">Consultando Redes Contábeis...</span>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className="p-6 border-t border-slate-200/60 bg-slate-50/50">
-            <div className="flex flex-wrap gap-2 mb-6">
-              {quickTerms.map(term => (
-                <button
-                  key={term}
-                  onClick={() => setInput(term)}
-                  className="text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl bg-white text-slate-600 hover:bg-slate-900 hover:text-white transition-all border border-slate-200 shadow-sm hover:shadow-md active:scale-95"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
+          {/* Floating Action Port */}
+          <div className="p-6 md:p-10 bg-gradient-to-t from-slate-900 via-slate-900/90 to-transparent">
+            <form onSubmit={handleSubmit} className="relative max-w-3xl mx-auto group">
+              <div className="absolute inset-0 bg-indigo-500/10 rounded-3xl blur-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-1000"></div>
 
-            <form onSubmit={handleSubmit} className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-indigo-600 rounded-2xl blur opacity-10 group-focus-within:opacity-20 transition duration-500"></div>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ex: Como funciona a tributação de dividendos?"
-                className="relative w-full bg-white border border-slate-200 rounded-2xl py-5 pl-6 pr-16 focus:ring-0 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400 text-slate-700 shadow-sm shadow-indigo-100/20"
+                placeholder="Inicie sua consulta estratégica..."
+                className="w-full glass-input rounded-2xl py-5 pl-8 pr-20 text-base md:text-lg font-light outline-none transition-all placeholder:text-slate-600"
               />
+
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="absolute right-3 top-3 h-12 w-12 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-lg active:scale-95"
+                className="absolute right-3 top-3 bottom-3 px-6 glass-button rounded-xl flex items-center justify-center hover:bg-indigo-600/30 hover:text-white disabled:opacity-20 transition-all active:scale-95"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
               </button>
             </form>
-            <p className="text-[10px] text-center mt-4 text-slate-400 font-medium uppercase tracking-[0.2em]">
-              Powered by Google Gemini 2.0 • Respostas baseadas na legislação brasileira
-            </p>
+            <div className="flex justify-center mt-6">
+              <span className="text-[9px] text-slate-700 font-bold uppercase tracking-[0.5em]">
+                Inteligência Artificial de Nível Doutoral
+              </span>
+            </div>
           </div>
         </div>
       </main>
-
-      <footer className="py-10 text-center border-t border-slate-100 bg-white">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-400 text-xs">CA</div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Contador Amigo • 2026</span>
-          </div>
-          <div className="flex gap-8">
-            <a href="#" className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors">Privacidade</a>
-            <a href="#" className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors">Termos de Uso</a>
-            <a href="#" className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors">Suporte Técnico</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
