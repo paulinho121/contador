@@ -16,7 +16,7 @@ export class GeminiLiveService {
         this.onMessageCallback = onMessage;
         this.onStatusCallback = onStatus;
 
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
         if (!apiKey) {
             console.error("API Key missing");
             return;
