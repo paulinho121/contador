@@ -2,6 +2,8 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
@@ -9,14 +11,20 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
     },
-    plugins: [react()],
+    plugins: [
+      react(),
+      nodePolyfills({
+        include: ['process', 'buffer', 'util', 'stream'],
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+      }),
+    ],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY),
-      // Polyfills for @azure/cosmos and other node-like deps
-      'global': 'window',
-      'process.env': JSON.stringify(env), // Expose all env vars safely (Vite filters public checks usually, but we need basic process.env for libs)
-      'process.version': JSON.stringify('v16.0.0'),
     },
     resolve: {
       alias: {
