@@ -39,11 +39,13 @@ const VoiceConsultant: React.FC<VoiceConsultantProps> = ({ context }) => {
         return (
             <button
                 onClick={handleStartCall}
-                className="group relative flex items-center gap-3 px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                className="group relative flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
             >
                 <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12" /><circle cx="17" cy="7" r="5" /></svg>
-                CONSULTA POR VOZ (AO VIVO)
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" md:width="20" md:height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12" /><circle cx="17" cy="7" r="5" /></svg>
+                <span className="text-xs md:text-sm uppercase tracking-wider">
+                    <span className="hidden sm:inline">CONSULTA POR </span>VOZ
+                </span>
             </button>
         );
     }

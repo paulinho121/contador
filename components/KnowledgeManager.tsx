@@ -81,12 +81,12 @@ const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({ onKnowledgeUpdate }
           : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600'
           }`}
       >
-        <div className="flex items-center gap-3 relative z-10">
+        <div className="flex items-center gap-2 md:gap-3 relative z-10">
           <div className={`p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-slate-800' : 'bg-slate-50 group-hover:bg-indigo-50'}`}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" /><path d="M8 7h6" /><path d="M8 11h8" /></svg>
           </div>
-          <span>{isOpen ? "Fechar Base Técnica" : "Gerenciar Base Técnica (RAG)"}</span>
-          <div className={`ml-2 w-2 h-2 rounded-full transition-all ${isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-300'}`}></div>
+          <span className="hidden md:inline">{isOpen ? "Fechar Base" : "Base Local (RAG)"}</span>
+          <div className={`ml-1 w-1.5 h-1.5 rounded-full transition-all ${isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-300'}`}></div>
         </div>
       </button>
 
