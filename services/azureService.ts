@@ -14,7 +14,12 @@ class AzureService {
 
     constructor() {
         if (CONNECTION_STRING) {
-            this.client = new CosmosClient(CONNECTION_STRING);
+            try {
+                this.client = new CosmosClient(CONNECTION_STRING);
+            } catch (error) {
+                console.error("Erro crítico ao inicializar Azure Cosmos Client. Verifique a Connection String.", error);
+                this.client = null;
+            }
         }
     }
 
