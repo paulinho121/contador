@@ -25,26 +25,14 @@ export class GeminiService {
   }
 
   async ask(prompt: string, context: string): Promise<string> {
-    // Usando gemini-2.0-flash que está confirmado na sua lista de modelos disponíveis
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
-
+    // Usando gemini-1.5-flash para maior estabilidade e limites de cota
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
     const messageWithContext = `[BASE DE CONHECIMENTO]:\n${context}\n\n---\n[CONSULTA DO CLIENTE]:\n${prompt}`;
 
     const body = {
-      contents: [
-        ...this.history,
-        {
-          role: "user",
-          parts: [{ text: messageWithContext }]
-        }
-      ],
-      systemInstruction: {
-        parts: [{ text: CHAT_INSTRUCTION }]
-      },
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2048,
-      }
+      contents: [...this.history, { role: "user", parts: [{ text: messageWithContext }] }],
+      systemInstruction: { parts: [{ text: CHAT_INSTRUCTION }] },
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
     };
 
     try {
@@ -56,19 +44,25 @@ export class GeminiService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Gemini Error Payload:", errorData);
+        console.error("Gemini API Error Detail:", errorData);
+
+        if (response.status === 429) {
+          return "Opa! O Dr. Contador está muito requisitado agora. 😅 Atingimos o limite de consultas por minuto do Google. Por favor, aguarde uns 30 segundos e tente novamente.";
+        }
+
         throw new Error(errorData.error?.message || "Erro na API Gemini");
       }
 
       const data = await response.json();
-      const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, tive um problema ao gerar a resposta.";
+      const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, tive um problema ao gerar seu parecer.";
 
+      // Update history
       this.history.push({ role: "user", parts: [{ text: prompt }] });
       this.history.push({ role: "model", parts: [{ text: assistantText }] });
 
       return assistantText;
     } catch (error: any) {
-      console.error("Gemini API Error:", error);
+      console.error("Gemini Error:", error);
       return `Tivemos uma interrupção na conexão: ${error.message}. Por favor, tente novamente.`;
     }
   }
