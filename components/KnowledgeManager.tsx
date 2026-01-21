@@ -26,21 +26,27 @@ const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({ onKnowledgeUpdate }
   React.useEffect(() => {
     async function loadFromCloud() {
       if (azureService.isConfigured()) {
-        const items = await azureService.getKnowledge();
-        if (items && items.length > 0) {
-          // Assuming the latest item has the full context or accumulating
-          // For this simple version, we take the latest content field if it exists
-          const latest = items[0];
-          if (latest.content) {
-            setContextText(latest.content);
-            onKnowledgeUpdate(latest.content);
-            setDataStatus('synced');
+        setDataStatus('syncing');
+        try {
+          const items = await azureService.getKnowledge();
+          if (items && items.length > 0) {
+            const latest = items[0];
+            if (latest.content) {
+              setContextText(latest.content);
+              onKnowledgeUpdate(latest.content);
+            }
           }
+          setDataStatus('synced');
+        } catch (e) {
+          console.error("Erro ao carregar do cloud:", e);
+          setDataStatus('error');
         }
+      } else {
+        console.warn("Azure Cosmos DB não configurado. Operando em modo local.");
       }
     }
     loadFromCloud();
-  }, []); // Run once on mount
+  }, []);
 
   const handleSave = async () => {
     setDataStatus('syncing');
@@ -98,8 +104,8 @@ const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({ onKnowledgeUpdate }
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${dataStatus === 'synced' ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${dataStatus === 'synced' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
               </span>
-              <span className={`text-[10px] font-extrabold uppercase tracking-widest ${dataStatus === 'synced' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {dataStatus === 'synced' ? 'Sincronizado na Nuvem' : dataStatus === 'syncing' ? 'Sincronizando...' : 'Modo Offline'}
+              <span className={`text-[10px] font-extrabold uppercase tracking-widest ${dataStatus === 'synced' ? 'text-emerald-700' : dataStatus === 'error' ? 'text-red-700' : 'text-amber-700'}`}>
+                {dataStatus === 'synced' ? 'Nuvem Conectada' : dataStatus === 'syncing' ? 'Sincronizando...' : dataStatus === 'error' ? 'Erro de Conexão' : 'Usando Base Local'}
               </span>
             </div>
           </div>

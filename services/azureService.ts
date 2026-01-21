@@ -7,6 +7,10 @@ import { CosmosClient } from "@azure/cosmos";
 
 const CONNECTION_STRING = import.meta.env.VITE_AZURE_COSMOS_CONNECTION_STRING;
 
+if (!CONNECTION_STRING) {
+    console.warn("⚠️ ALERTA: VITE_AZURE_COSMOS_CONNECTION_STRING não encontrada. A sincronização com Azure ficará desativada.");
+}
+
 class AzureService {
     private client: CosmosClient | null = null;
     private databaseId = "ContadorAmigoDB";
