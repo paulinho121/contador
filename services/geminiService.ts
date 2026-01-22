@@ -13,7 +13,14 @@ Você é o "Dr. Contador", um mentor e consultor contábil de excelência. Seu o
 `;
 
 export const VOICE_INSTRUCTION = `
-Você é o "Dr. Contador" em voz. Fale naturalmente, sem listas, curto e direto.
+Você é o "Dr. Contador". 
+REGRAS CRÍTICAS:
+1. Fale EXCLUSIVAMENTE em Português (Brasil).
+2. NUNCA mencione que você é uma IA, um modelo, ou que está seguindo instruções.
+3. NUNCA descreva seu comportamento (ex: não diga "Como Dr. Contador, devo falar...").
+4. Responda diretamente ao usuário como se fosse uma pessoa real em uma chamada.
+5. Seja curto, direto e use o contexto técnico fornecido.
+6. Não use Markdown ou formatação de texto, apenas fala natural.
 `;
 
 export class GeminiService {
@@ -24,23 +31,22 @@ export class GeminiService {
     this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
   }
 
-  async ask(prompt: string, context: string): Promise<string> {
-    // Atualizado para usar o Gemini 2.0 Flash conforme solicitado
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
-    const messageWithContext = `[BASE DE CONHECIMENTO]:\n${context}\n\n---\n[CONSULTA DO CLIENTE]:\n${prompt}`;
+  async ask(prompt: string, context: string, onStream?: (text: string) => void): Promise<string> {
+    const isStreaming = !!onStream;
+    const method = isStreaming ? "streamGenerateContent" : "generateContent";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
+
+    // Safety: don't send the entire 1MB context if it's too big for a single chat turn
+    // This is the main reason for latency. Truncating to 100k chars for text chat.
+    const limitedContext = context.length > 100000 ? context.substring(0, 100000) + "..." : context;
+    const messageWithContext = `[BASE DE CONHECIMENTO]:\n${limitedContext}\n\n---\n[CONSULTA DO CLIENTE]:\n${prompt}`;
 
     const body = {
       contents: [...this.history, { role: "user", parts: [{ text: messageWithContext }] }],
       systemInstruction: { parts: [{ text: CHAT_INSTRUCTION }] },
-      // Ativando a ferramenta de Google Search conforme o exemplo Python fornecido
-      tools: [
-        {
-          googleSearch: {}
-        }
-      ],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 1024,
       }
     };
 
@@ -53,27 +59,71 @@ export class GeminiService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Gemini API Error Detail:", errorData);
-
-        if (response.status === 429) {
-          return "Opa! O Dr. Contador está muito requisitado agora. 😅 Atingimos o limite de consultas por minuto. Por favor, aguarde uns 30 segundos e tente novamente.";
-        }
-
         throw new Error(errorData.error?.message || "Erro na API Gemini");
       }
 
-      const data = await response.json();
-      const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, tive um problema ao gerar seu parecer.";
+      if (isStreaming) {
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("Stream not supported");
 
-      // Atualiza histórico para manter a consistência do chat
-      this.history.push({ role: "user", parts: [{ text: prompt }] });
-      this.history.push({ role: "model", parts: [{ text: assistantText }] });
+        let fullText = "";
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-      return assistantText;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Gemini REST streaming sends a series of JSON objects, possibly inside a [ ] array
+          // and often separated by commas. This logic extracts each { ... } block.
+          let braceCount = 0;
+          let startIdx = -1;
+
+          for (let i = 0; i < buffer.length; i++) {
+            if (buffer[i] === '{') {
+              if (braceCount === 0) startIdx = i;
+              braceCount++;
+            } else if (buffer[i] === '}') {
+              braceCount--;
+              if (braceCount === 0 && startIdx !== -1) {
+                const jsonStr = buffer.substring(startIdx, i + 1);
+                try {
+                  const json = JSON.parse(jsonStr);
+                  const delta = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                  fullText += delta;
+                  if (onStream) onStream(fullText);
+                } catch (e) {
+                  console.warn("Failed to parse stream chunk:", e);
+                }
+                // Keep the rest of the buffer
+                buffer = buffer.substring(i + 1);
+                i = -1; // Reset loop for new buffer
+              }
+            }
+          }
+        }
+
+        this.updateHistory(prompt, fullText);
+        return fullText;
+      }
+      else {
+        const data = await response.json();
+        const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        this.updateHistory(prompt, assistantText);
+        return assistantText;
+      }
     } catch (error: any) {
       console.error("Gemini Error:", error);
-      return `Tivemos uma interrupção na conexão: ${error.message}. Por favor, tente novamente em instantes.`;
+      return `Erro: ${error.message}`;
     }
+  }
+
+  private updateHistory(userText: string, assistantText: string) {
+    this.history.push({ role: "user", parts: [{ text: userText }] });
+    this.history.push({ role: "model", parts: [{ text: assistantText }] });
+    if (this.history.length > 20) this.history = this.history.slice(-20);
   }
 
   resetSession() {

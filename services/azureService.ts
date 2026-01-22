@@ -15,6 +15,7 @@ class AzureService {
     private client: CosmosClient | null = null;
     private databaseId = "ContadorAmigoDB";
     private containerId = "KnowledgeBase";
+    private usersContainerId = "Users";
 
     constructor() {
         if (CONNECTION_STRING) {
@@ -35,7 +36,8 @@ class AzureService {
         if (!this.client) return false;
         try {
             const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
-            const { container } = await database.containers.createIfNotExists({ id: this.containerId });
+            await database.containers.createIfNotExists({ id: this.containerId });
+            await database.containers.createIfNotExists({ id: this.usersContainerId });
             return true;
         } catch (error) {
             console.error("Erro ao conectar Azure Cosmos DB:", error);
@@ -47,22 +49,17 @@ class AzureService {
         if (!this.client) throw new Error("Azure não configurado");
 
         try {
-            console.log("Iniciando sincronização com Azure Cosmos DB...");
-
-            // Garantir que Banco e Container existam antes de salvar
             const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
             const { container } = await database.containers.createIfNotExists({ id: this.containerId });
 
             const itemToSave = {
                 id: crypto.randomUUID(),
-                partitionKey: "global", // Adicionando uma partition key padrão para escalabilidade
+                partitionKey: "global",
                 timestamp: new Date().toISOString(),
                 ...item
             };
 
-            console.log("Salvando item no container...");
             const { resource } = await container.items.create(itemToSave);
-            console.log("Sincronização concluída com sucesso!");
             return resource;
         } catch (error) {
             console.error("Falha na sincronização Azure:", error);
@@ -76,22 +73,71 @@ class AzureService {
             const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
             const { container } = await database.containers.createIfNotExists({ id: this.containerId });
 
-            console.log("Buscando conhecimentos na nuvem...");
             const { resources } = await container.items
                 .query("SELECT * from c")
                 .fetchAll();
 
-            // Ordenação local para evitar erros de índice não configurado
-            const sortedResources = resources.sort((a, b) =>
+            return resources.sort((a, b) =>
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
-
-            console.log(`Encontrados ${sortedResources.length} itens de conhecimento.`);
-            return sortedResources;
         } catch (error) {
             console.error("Erro ao buscar conhecimentos:", error);
             return [];
         }
+    }
+
+    async registerUser(userData: { name: string, email: string, password?: string }) {
+        if (!this.client) throw new Error("Azure não configurado");
+
+        const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+        const { container } = await database.containers.createIfNotExists({ id: this.usersContainerId });
+
+        const { resources } = await container.items
+            .query({
+                query: "SELECT * FROM c WHERE c.email = @email",
+                parameters: [{ name: "@email", value: userData.email }]
+            })
+            .fetchAll();
+
+        if (resources.length > 0) {
+            throw new Error("E-mail já cadastrado.");
+        }
+
+        const newUser = {
+            id: crypto.randomUUID(),
+            partitionKey: "user",
+            timestamp: new Date().toISOString(),
+            ...userData
+        };
+
+        const { resource } = await container.items.create(newUser);
+        return resource;
+    }
+
+    async loginUser(email: string, password?: string) {
+        if (!this.client) throw new Error("Azure não configurado");
+
+        const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+        const { container } = await database.containers.createIfNotExists({ id: this.usersContainerId });
+
+        const { resources } = await container.items
+            .query({
+                query: "SELECT * FROM c WHERE c.email = @email",
+                parameters: [{ name: "@email", value: email }]
+            })
+            .fetchAll();
+
+        if (resources.length === 0) {
+            throw new Error("E-mail não encontrado.");
+        }
+
+        const user = resources[0];
+
+        if (password && user.password !== password) {
+            throw new Error("Senha incorreta.");
+        }
+
+        return user;
     }
 }
 
