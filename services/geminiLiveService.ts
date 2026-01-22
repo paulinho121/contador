@@ -11,6 +11,7 @@ export class GeminiLiveService {
     private systemInstruction: string = VOICE_INSTRUCTION;
     private audioQueue: Int16Array[] = [];
     private isProcessingQueue = false;
+    private nextStartTime = 0;
 
     constructor() { }
 
@@ -145,7 +146,7 @@ export class GeminiLiveService {
                             }
                         }
                     },
-                    media_resolution: "MEDIA_RESOLUTION_MEDIUM"
+                    media_resolution: "LOW"
                 },
                 system_instruction: {
                     parts: [{
@@ -184,7 +185,7 @@ export class GeminiLiveService {
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             // ScriptProcessor is deprecated but widely supported for this use case
             // If it fails, we might need a Worklet, but let's keep it for compatibility
-            this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+            this.processor = this.audioContext.createScriptProcessor(2048, 1, 1);
 
             this.source.connect(this.processor);
             this.processor.connect(this.audioContext.destination);
@@ -245,7 +246,7 @@ export class GeminiLiveService {
         this.isProcessingQueue = true;
         const pcmData = this.audioQueue.shift()!;
 
-        // Create an AudioBuffer for 24kHz Mono PCM
+        // Criar AudioBuffer para 24kHz Mono PCM
         const buffer = this.audioContext.createBuffer(1, pcmData.length, 24000);
         const channelData = buffer.getChannelData(0);
 
@@ -257,11 +258,23 @@ export class GeminiLiveService {
         source.buffer = buffer;
         source.connect(this.audioContext.destination);
 
-        source.onended = () => {
-            this.processAudioQueue();
-        };
+        // PRECISE SCHEDULING: Elimina silêncios entre os pacotes de áudio
+        const currentTime = this.audioContext.currentTime;
+        if (this.nextStartTime < currentTime) {
+            this.nextStartTime = currentTime + 0.01;
+        }
 
-        source.start();
+        source.start(this.nextStartTime);
+        this.nextStartTime += buffer.duration;
+
+        // Recursividade imediata para manter o buffer de saída cheio
+        if (this.audioQueue.length > 0) {
+            this.processAudioQueue();
+        } else {
+            source.onended = () => {
+                this.isProcessingQueue = false;
+            };
+        }
     }
 
     private stopAudioOutput() {
