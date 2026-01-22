@@ -146,7 +146,7 @@ export class GeminiLiveService {
                             }
                         }
                     },
-                    media_resolution: "LOW"
+                    media_resolution: "MEDIA_RESOLUTION_LOW"
                 },
                 system_instruction: {
                     parts: [{
