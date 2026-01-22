@@ -23,7 +23,7 @@ const App: React.FC = () => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Olá. Sou o **Dr. Contador**. Estou pronto para processar sua análise contábil.',
+      content: 'Olá! Sou seu **Contador Sênior de Confiança**. No que posso te orientar hoje? Estou aqui para garantir a segurança fiscal e contábil do seu negócio.',
       timestamp: new Date()
     }
   ]);
@@ -192,7 +192,7 @@ const App: React.FC = () => {
               </div>
               <h3 className="text-2xl md:text-4xl font-black text-white mb-6 uppercase tracking-tighter italic">Consultoria Voz</h3>
               <p className="text-slate-500 text-xs md:text-lg font-light leading-relaxed max-w-[320px] group-hover:text-slate-300 transition-colors">
-                Experiência neural de voz em tempo real com o Dr. Contador (Charon).
+                Experiência de consultoria por voz em tempo real com seu Contador Sênior.
               </p>
 
               <div className="mt-10">

@@ -30,11 +30,13 @@ const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({ onKnowledgeUpdate }
         try {
           const items = await azureService.getKnowledge();
           if (items && items.length > 0) {
-            const latest = items[0];
-            if (latest.content) {
-              setContextText(latest.content);
-              onKnowledgeUpdate(latest.content);
-            }
+            // Concatena todos os conteúdos para formar a base completa
+            const allContent = items
+              .map(item => `### ${item.title || item.metadata?.titulo || 'Sem Título'}\n${item.content || item.resumo_pratico}\n`)
+              .join('\n---\n\n');
+
+            setContextText(allContent);
+            onKnowledgeUpdate(allContent);
           }
           setDataStatus('synced');
         } catch (e) {
