@@ -12,6 +12,8 @@ export class GeminiLiveService {
     private audioQueue: Int16Array[] = [];
     private isProcessingQueue = false;
     private nextStartTime = 0;
+    private activeSources: AudioBufferSourceNode[] = [];
+    private silenceThreshold = 0.02; // Gate de ruído para evitar auto-interrupção
 
     constructor() { }
 
@@ -180,7 +182,13 @@ export class GeminiLiveService {
 
     async startMic() {
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
             this.audioContext = new AudioContext({ sampleRate: 16000 });
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             // ScriptProcessor is deprecated but widely supported for this use case
@@ -192,15 +200,18 @@ export class GeminiLiveService {
 
             this.processor.onaudioprocess = (e) => {
                 const inputData = e.inputBuffer.getChannelData(0);
-                const pcm16 = this.floatTo16BitPCM(inputData);
-                this.sendAudioInput(pcm16);
+                const { pcm, maxVol } = this.floatTo16BitPCM(inputData);
+                this.sendAudioInput(pcm, maxVol);
             };
         } catch (err) {
             console.error("Error accessing mic:", err);
         }
     }
 
-    private sendAudioInput(pcmData: Int16Array) {
+    private sendAudioInput(pcmData: Int16Array, volume: number) {
+        // Só envia se o volume ultrapassar o threshold (Noise Gate)
+        if (volume < this.silenceThreshold) return;
+
         if (this.socket?.readyState === WebSocket.OPEN) {
             const base64 = btoa(String.fromCharCode(...new Uint8Array(pcmData.buffer)));
             this.socket.send(JSON.stringify({
@@ -214,16 +225,20 @@ export class GeminiLiveService {
         }
     }
 
-    private floatTo16BitPCM(input: Float32Array): Int16Array {
+    private floatTo16BitPCM(input: Float32Array): { pcm: Int16Array, maxVol: number } {
         const output = new Int16Array(input.length);
+        let maxVol = 0;
         for (let i = 0; i < input.length; i++) {
             const s = Math.max(-1, Math.min(1, input[i]));
+            const absS = Math.abs(s);
+            if (absS > maxVol) maxVol = absS;
             output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
-        return output;
+        return { pcm: output, maxVol };
     }
 
     private playAudioOutput(base64Data: string) {
+        if (!base64Data) return;
         const binary = atob(base64Data);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {
@@ -257,29 +272,37 @@ export class GeminiLiveService {
         const source = this.audioContext.createBufferSource();
         source.buffer = buffer;
         source.connect(this.audioContext.destination);
+        this.activeSources.push(source);
 
-        // PRECISE SCHEDULING: Elimina silêncios entre os pacotes de áudio
+        // PRECISE SCHEDULING: Margem de segurança levemente aumentada (0.05) para jitter de rede
         const currentTime = this.audioContext.currentTime;
         if (this.nextStartTime < currentTime) {
-            this.nextStartTime = currentTime + 0.01;
+            this.nextStartTime = currentTime + 0.05;
         }
 
         source.start(this.nextStartTime);
         this.nextStartTime += buffer.duration;
 
-        // Recursividade imediata para manter o buffer de saída cheio
-        if (this.audioQueue.length > 0) {
-            this.processAudioQueue();
-        } else {
-            source.onended = () => {
+        source.onended = () => {
+            this.activeSources = this.activeSources.filter(s => s !== source);
+            if (this.audioQueue.length > 0) {
+                this.processAudioQueue();
+            } else {
                 this.isProcessingQueue = false;
-            };
-        }
+            }
+        };
     }
 
     private stopAudioOutput() {
+        this.activeSources.forEach(source => {
+            try {
+                source.stop();
+            } catch (e) { }
+        });
+        this.activeSources = [];
         this.audioQueue = [];
         this.isProcessingQueue = false;
+        this.nextStartTime = 0;
     }
 
     disconnect() {
