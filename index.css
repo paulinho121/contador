@@ -177,3 +177,33 @@ h3 {
     color: #fff;
     font-weight: 600;
 }
+
+/* Privacy Notice & Censorship Styles */
+.privacy-notice {
+    font-size: 0.75rem;
+    color: rgba(148, 163, 184, 0.5);
+    text-align: center;
+    margin-top: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.censored-on-print {
+    transition: all 0.3s ease;
+}
+
+@media print {
+    .censored-on-print {
+        filter: blur(8px);
+        background: #000;
+        color: transparent !important;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    /* Hide non-essential elements for print */
+    .no-print {
+        display: none !important;
+    }
+}

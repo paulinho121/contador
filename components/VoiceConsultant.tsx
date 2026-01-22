@@ -182,7 +182,7 @@ const VoiceConsultant: React.FC<VoiceConsultantProps> = ({ context, isSelectionM
                         <button
                             onClick={() => setIsMuted(!isMuted)}
                             className={`w-14 h-14 rounded-full flex items-center justify-center transition-all border ${isMuted
-                                ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                                ? 'bg-red-500/10 border-red-500/30 text-red-100'
                                 : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
                         >
                             {isMuted ? (
@@ -199,8 +199,9 @@ const VoiceConsultant: React.FC<VoiceConsultantProps> = ({ context, isSelectionM
                             <svg className="group-hover:rotate-12 transition-transform" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
                         </button>
 
-                        <div className="w-14 h-14" /> {/* Spacer */}
+                        <div className="w-14" />
                     </div>
+                    <p className="privacy-notice text-[8px] opacity-30 mt-4">Nenhum dado capturado nesta sessão é persistido em nosso banco de dados.</p>
                 </div>
             </div>
         </div>,

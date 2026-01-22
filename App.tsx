@@ -23,6 +23,60 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'selection' | 'chat'>('selection');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const censorPatterns = [
+    /\d{3}\.\d{3}\.\d{3}-\d{2}/g, // CPF
+    /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g, // CNPJ
+    /\b[\w.-]+@[\w.-]+\.\w{2,}\b/g, // Email
+    /(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}[-\s]?\d{4}/g // Phone
+  ];
+
+  const renderContent = (text: string) => {
+    // First handle bold marks
+    const lines = text.split('\n');
+    return lines.map((line, i) => {
+      const boldParts = line.split('**');
+      return (
+        <p key={i} className="mb-2 md:mb-3 last:mb-0 min-h-[1.2em] md:min-h-[1.5em] font-light text-sm md:text-base text-white">
+          {boldParts.map((part, index) => {
+            const isBold = index % 2 === 1;
+            const rawContent = part;
+
+            // Handle sensitive patterns
+            let subParts: (string | React.ReactNode)[] = [rawContent];
+            censorPatterns.forEach(pattern => {
+              const nextSubParts: (string | React.ReactNode)[] = [];
+              subParts.forEach(sp => {
+                if (typeof sp === 'string') {
+                  const matches = sp.match(pattern);
+                  const splits = sp.split(pattern);
+                  splits.forEach((s, si) => {
+                    nextSubParts.push(s);
+                    if (matches && matches[si]) {
+                      nextSubParts.push(<span key={si} className="censored-on-print">{matches[si]}</span>);
+                    }
+                  });
+                } else {
+                  nextSubParts.push(sp);
+                }
+              });
+              subParts = nextSubParts;
+            });
+
+            return (
+              <React.Fragment key={index}>
+                {isBold ? (
+                  <strong className="font-bold text-indigo-300">{subParts}</strong>
+                ) : (
+                  subParts
+                )}
+              </React.Fragment>
+            );
+          })}
+        </p>
+      );
+    });
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -179,6 +233,15 @@ const App: React.FC = () => {
             Voltar para Seleção
           </button>
 
+          {/* Reset Action */}
+          <button
+            onClick={handleReset}
+            className="absolute -top-12 md:-top-16 right-4 md:right-0 flex items-center gap-2 text-[10px] md:text-xs font-black uppercase tracking-widest text-red-500/70 hover:text-red-400 transition-colors group no-print"
+          >
+            Apagar Dados
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-90 transition-transform"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+          </button>
+
           {/* Chat Hub */}
           <div className="flex-1 flex flex-col rounded-2xl md:rounded-3xl overflow-hidden glass-panel border-white/5 shadow-2xl relative">
             <div className="flex-1 overflow-y-auto p-4 md:p-12 space-y-6 md:space-y-10 scrollbar-hide">
@@ -189,13 +252,7 @@ const App: React.FC = () => {
                     : 'bg-white/5 border border-white/10 text-slate-100 shadow-white/5'
                     } backdrop-blur-3xl`}>
                     <div className="prose prose-invert prose-xs md:prose-base max-w-none leading-relaxed tracking-wide">
-                      {m.content.split('\n').map((line, i) => (
-                        <p key={i} className="mb-2 md:mb-3 last:mb-0 min-h-[1.2em] md:min-h-[1.5em] font-light text-sm md:text-base text-white">
-                          {line.split('**').map((part, index) => (
-                            index % 2 === 1 ? <strong key={index} className="font-bold text-indigo-300">{part}</strong> : part
-                          ))}
-                        </p>
-                      ))}
+                      {renderContent(m.content)}
                     </div>
                   </div>
                 </div>
@@ -231,6 +288,9 @@ const App: React.FC = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" md:width="22" md:height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
                 </button>
               </form>
+              <p className="privacy-notice no-print">
+                Sessão segura: nenhum dado é armazenado em nosso banco de dados.
+              </p>
             </div>
           </div>
         </main>

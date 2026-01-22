@@ -57,7 +57,7 @@ const Header: React.FC<HeaderProps> = ({ onReset, knowledgeComponent, user, onLo
             <button
               onClick={onReset}
               className="w-10 h-10 md:w-11 md:h-11 rounded-xl md:rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/40 text-white/60 hover:text-red-400 transition-all shadow-xl active:scale-95"
-              title="Novo Atendimento"
+              title="Apagar Dados do Atendimento"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
             </button>
