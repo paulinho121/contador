@@ -3,12 +3,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import Header from './components/Header';
 import { Message } from './types';
 import { geminiService } from './services/geminiService';
+import { autonomousService } from './services/autonomousService';
 import VoiceConsultant from './components/VoiceConsultant';
 import KnowledgeManager from './components/KnowledgeManager';
 import AuthPage from './components/AuthPage';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      // Inicia o agente de monitoramento autônomo a cada 30 minutos (1.800.000ms)
+      autonomousService.startMonitoring(1800000);
+      return () => autonomousService.stopMonitoring();
+    }
+  }, [user]);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
