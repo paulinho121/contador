@@ -139,6 +139,58 @@ class AzureService {
 
         return user;
     }
+
+    async getAllUsers() {
+        if (!this.client) return [];
+        try {
+            const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+            const { container } = await database.containers.createIfNotExists({ id: this.usersContainerId });
+
+            const { resources } = await container.items
+                .query("SELECT * from c")
+                .fetchAll();
+
+            return resources;
+        } catch (error) {
+            console.error("Erro ao buscar usuários:", error);
+            return [];
+        }
+    }
+
+    async updateUserActivity(email: string) {
+        if (!this.client) return;
+        try {
+            const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+            const { container } = await database.containers.createIfNotExists({ id: this.usersContainerId });
+
+            const { resources } = await container.items
+                .query({
+                    query: "SELECT * FROM c WHERE c.email = @email",
+                    parameters: [{ name: "@email", value: email }]
+                })
+                .fetchAll();
+
+            if (resources.length > 0) {
+                const user = resources[0];
+                user.lastActive = new Date().toISOString();
+                await container.item(user.id, user.partitionKey).replace(user);
+            }
+        } catch (error) {
+            console.error("Erro ao atualizar atividade:", error);
+        }
+    }
+
+    async deleteKnowledge(id: string) {
+        if (!this.client) return;
+        try {
+            const { database } = await this.client.databases.createIfNotExists({ id: this.databaseId });
+            const { container } = await database.containers.createIfNotExists({ id: this.containerId });
+            await container.item(id, "global").delete();
+        } catch (error) {
+            console.error("Erro ao deletar conhecimento:", error);
+            throw error;
+        }
+    }
 }
 
 export const azureService = new AzureService();

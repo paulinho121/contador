@@ -5,17 +5,50 @@ import { Message } from './types';
 import { geminiService } from './services/geminiService';
 import { autonomousService } from './services/autonomousService';
 import VoiceConsultant from './components/VoiceConsultant';
-import KnowledgeManager from './components/KnowledgeManager';
 import AuthPage from './components/AuthPage';
+import AdminPanel from './components/AdminPanel';
+import { azureService } from './services/azureService';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(() => {
+    const saved = localStorage.getItem('contador_at_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
+      localStorage.setItem('contador_at_user', JSON.stringify(user));
       // Inicia o agente de monitoramento autônomo a cada 30 minutos (1.800.000ms)
       autonomousService.startMonitoring(1800000);
-      return () => autonomousService.stopMonitoring();
+
+      // Atualiza atividade agora e a cada 5 minutos
+      const updateActivity = () => azureService.updateUserActivity(user.email);
+      updateActivity();
+      const activityInterval = setInterval(updateActivity, 5 * 60 * 1000);
+
+      // Carrega conhecimento (RAG) global
+      const loadKnowledge = async () => {
+        try {
+          const items = await azureService.getKnowledge();
+          if (items.length > 0) {
+            const allContent = items
+              .map(item => `### ${item.title || 'Informação'}\n${item.content}\n`)
+              .join('\n---\n\n');
+            setContext(allContent);
+          }
+        } catch (e) {
+          console.error("Erro ao carregar RAG:", e);
+        }
+      };
+      loadKnowledge();
+
+      return () => {
+        autonomousService.stopMonitoring();
+        clearInterval(activityInterval);
+      };
+    } else {
+      localStorage.removeItem('contador_at_user');
     }
   }, [user]);
 
@@ -224,10 +257,18 @@ const App: React.FC = () => {
 
       <Header
         onReset={handleReset}
-        knowledgeComponent={<KnowledgeManager onKnowledgeUpdate={setContext} />}
         user={user}
         onLogout={() => setUser(null)}
+        onAdminClick={() => setIsAdminOpen(true)}
       />
+
+      {isAdminOpen && user?.email === 'paulofernandoautomacao@gmail.com' && (
+        <AdminPanel
+          onClose={() => setIsAdminOpen(false)}
+          onKnowledgeUpdate={setContext}
+          currentUserEmail={user.email}
+        />
+      )}
 
       {viewMode === 'selection' ? (
         <SelectionScreen />

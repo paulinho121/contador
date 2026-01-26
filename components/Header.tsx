@@ -6,9 +6,10 @@ interface HeaderProps {
   knowledgeComponent?: React.ReactNode;
   user?: { name: string; email: string } | null;
   onLogout?: () => void;
+  onAdminClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onReset, knowledgeComponent, user, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ onReset, knowledgeComponent, user, onLogout, onAdminClick }) => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-20 md:h-24 flex items-center justify-between px-4 md:px-12 pointer-events-none">
       <div className="flex items-center gap-3 md:gap-5 pointer-events-auto">
@@ -52,7 +53,14 @@ const Header: React.FC<HeaderProps> = ({ onReset, knowledgeComponent, user, onLo
         </div>
 
         <div className="flex items-center gap-2 md:gap-3 bg-white/5 border border-white/10 backdrop-blur-2xl p-1.5 md:p-2 rounded-2xl md:rounded-[1.5rem] shadow-2xl">
-          {knowledgeComponent}
+          {user?.email === 'paulofernandoautomacao@gmail.com' && (
+            <button
+              onClick={onAdminClick}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+            >
+              Painel Admin
+            </button>
+          )}
           {onReset && (
             <button
               onClick={onReset}
