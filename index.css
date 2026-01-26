@@ -207,3 +207,119 @@ h3 {
         display: none !important;
     }
 }
+
+/* ChatGPT Style Additions */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 260px;
+    height: 100%;
+    background-color: #0f172a;
+    /* Slightly darker slate */
+    border-right: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+    transition: transform 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: absolute;
+        left: 0;
+        transform: translateX(-100%);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    scroll-behavior: smooth;
+}
+
+.chat-container-inner {
+    max-width: 48rem;
+    /* 3xl - standard chatgpt width */
+    margin: 0 auto;
+    width: 100%;
+    padding: 2rem 1rem;
+}
+
+.message-bubble {
+    padding: 1.5rem 1rem;
+    width: 100%;
+}
+
+.message-user {
+    background-color: transparent;
+}
+
+.message-assistant {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.input-container {
+    padding: 1.5rem 1rem;
+    position: relative;
+    background: linear-gradient(to top, #020617 80%, transparent);
+}
+
+.input-wrapper {
+    max-width: 48rem;
+    margin: 0 auto;
+    position: relative;
+}
+
+.sidebar-item {
+    padding: 0.75rem 1rem;
+    margin: 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.sidebar-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.new-chat-btn {
+    margin: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.new-chat-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
