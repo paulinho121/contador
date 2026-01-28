@@ -26,7 +26,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : null;
   });
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
@@ -207,28 +207,7 @@ const App: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert("Seu navegador não suporta reconhecimento de voz.");
-      return;
-    }
 
-    const SpeechRecognition = (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'pt-BR';
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-    };
-
-    recognition.start();
-  };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -518,21 +497,21 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="input-container">
+        <div className="input-container no-print">
           <form onSubmit={handleSubmit} className="input-wrapper">
             {selectedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4 p-2 bg-slate-800/30 rounded-xl border border-white/5">
+              <div className="flex flex-wrap gap-2 mb-4 p-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 animate-fade-in">
                 {selectedFiles.map((f, i) => (
-                  <div key={i} className="relative group/file w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                  <div key={i} className="relative group/file w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-black/40 shadow-lg">
                     {f.file.type.startsWith('image/') ? (
                       <img src={f.preview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-1">
+                      <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-indigo-500/10">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
                           <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
-                        <span className="text-[8px] text-white/50 truncate w-full text-center mt-1 px-1">
+                        <span className="text-[8px] text-white/50 truncate w-full text-center mt-1 px-1 font-bold">
                           {f.file.name.split('.').pop()?.toUpperCase()}
                         </span>
                       </div>
@@ -540,7 +519,7 @@ const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => removeFile(i)}
-                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover/file:opacity-100 transition-all shadow-lg"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                     </button>
@@ -549,14 +528,21 @@ const App: React.FC = () => {
               </div>
             )}
             <div className="relative group">
-              <div className="absolute left-2 top-2 bottom-2 flex items-center">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Pergunte ao Dr. Contador..."
+                className="w-full bg-slate-800/40 backdrop-blur-xl border border-white/10 rounded-2xl py-4 md:py-6 pl-14 md:pl-16 pr-16 text-sm md:text-base text-white outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-400 shadow-2xl"
+              />
+              <div className="absolute left-2 top-2 bottom-2 flex items-center z-10">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 md:p-3 text-slate-400 hover:text-indigo-400 transition-colors"
+                  className="p-3 text-slate-400 hover:text-indigo-300 hover:bg-white/5 rounded-xl transition-all"
                   title="Anexar arquivos (Imagens, PDF, XML)"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.51a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.51a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
                 </button>
                 <input
                   type="file"
@@ -568,34 +554,22 @@ const App: React.FC = () => {
                   className="hidden"
                 />
               </div>
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={isListening ? "Ouvindo seu pedido..." : "Pergunte qualquer coisa ou envie um arquivo para análise..."}
-                className={`w-full bg-slate-800/50 border border-white/10 rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-24 text-sm md:text-base text-white outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-slate-500 ${isListening ? 'ring-2 ring-indigo-500 border-indigo-500' : ''}`}
-              />
-              <div className="absolute right-14 md:right-16 top-2 md:top-3 bottom-2 md:bottom-3 flex items-center">
-                <button
-                  type="button"
-                  onClick={startListening}
-                  className={`p-2 rounded-xl transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-indigo-400'}`}
-                  title="Falar com Dr. Contador"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>
-                </button>
-              </div>
               <button
                 type="submit"
                 disabled={(!input.trim() && selectedFiles.length === 0) || isLoading}
-                className="absolute right-2 md:right-3 top-2 md:top-3 bottom-2 md:bottom-3 px-4 glass-button rounded-xl flex items-center justify-center hover:bg-indigo-600/30 disabled:opacity-20 transition-all"
+                className="absolute right-2 md:right-3 top-2 md:top-3 bottom-2 md:bottom-3 px-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl flex items-center justify-center disabled:opacity-20 transition-all shadow-lg active:scale-95 z-10"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'animate-pulse' : ''}><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
               </button>
             </div>
-            <p className="privacy-notice mt-4 text-[10px] md:text-[11px] font-bold text-indigo-300/60 text-center tracking-widest uppercase safe-bottom">
-              ⚠️ Análise Multimodal Ativa: Suporta Imagens, Notas Fiscais (XML) e Documentos (PDF).
-            </p>
+            <div className="flex items-center justify-center gap-2 mt-5 opacity-60">
+              <span className="text-amber-400 animate-pulse">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /></svg>
+              </span>
+              <p className="text-[9px] md:text-[10px] font-black text-indigo-200 text-center tracking-[0.2em] uppercase">
+                IA Multimodal: Imagens • XML • PDF
+              </p>
+            </div>
           </form>
         </div>
       </main>

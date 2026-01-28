@@ -174,24 +174,36 @@ class AzureService {
                 const user = resources[0];
                 user.lastActive = new Date().toISOString();
 
-                // Tenta atualizar usando a partition key original. Se falhar, tenta sem ou com ID.
-                try {
-                    const pk = user.partitionKey || "user";
-                    await container.item(user.id, pk).replace(user);
-                } catch (replaceErr: any) {
-                    if (replaceErr.code === 404) {
-                        console.warn(`⚠️ 404 detectado no replace para ${email}. Tentando correção de partição...`);
-                        // Em alguns casos de migração ou containers mal configurados, a PK pode ser o próprio ID
-                        await container.item(user.id, user.id).replace(user);
-                    } else {
-                        throw replaceErr;
+                // Tentativa de atualização robusta
+                const pkOptions = [
+                    user.partitionKey,  // Preferencial: valor salvo no documento
+                    "user",             // Padrão definido no registerUser
+                    user.id,            // ID como PK (comum em Cosmos DB)
+                    user.email          // Email como PK (alternativa comum)
+                ];
+
+                let updated = false;
+                for (const pk of pkOptions) {
+                    if (!pk) continue;
+                    try {
+                        await container.item(user.id, pk).replace(user);
+                        updated = true;
+                        break;
+                    } catch (err: any) {
+                        if (err.code !== 404) throw err;
                     }
+                }
+
+                if (!updated) {
+                    console.warn(`⚠️ Não foi possível encontrar a partição correta para atualizar o usuário ${email} (ID: ${user.id}). Tentando upsert...`);
+                    // Upsert é um fallback poderoso, mas exige a PK correta se o container já tiver uma
+                    await container.items.upsert(user);
                 }
             } else {
                 console.warn(`⚠️ Usuário ${email} não encontrado na base para atualização de atividade.`);
             }
         } catch (error: any) {
-            console.error(`❌ Erro persistente ao atualizar atividade de ${email}:`, error.message);
+            console.error(`❌ Erro crítico ao atualizar atividade de ${email}:`, error.message);
         }
     }
 

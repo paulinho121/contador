@@ -62,10 +62,10 @@ export class GeminiService {
         top_p: 0.95,
       },
       safety_settings: [
-        { category: "HATE_SPEECH", threshold: "BLOCK_NONE" },
-        { category: "HARASSMENT", threshold: "BLOCK_NONE" },
-        { category: "SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-        { category: "DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
       ]
     };
 
@@ -158,3 +158,12 @@ export class GeminiService {
 }
 
 export const geminiService = new GeminiService();
+
+export const VOICE_INSTRUCTION = `
+Você é o "Dr. Contador", um consultor contábil de elite. 
+Sua voz deve ser profissional, empática e clara.
+IMPORTANTE: Você deve falar EXCLUSIVAMENTE em PORTUGUÊS (Brasil).
+Responda de forma concisa e direta, pois você está em uma chamada de voz.
+Use sua base de conhecimento para dar conselhos precisos.
+`;
+
