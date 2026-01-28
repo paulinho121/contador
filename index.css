@@ -169,13 +169,122 @@ h3 {
 }
 
 /* Markdown Styles for Chat */
-.prose-invert p {
+.prose-invert {
     color: #e2e8f0;
+}
+
+.prose-invert p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
 }
 
 .prose-invert strong {
     color: #fff;
-    font-weight: 600;
+    font-weight: 700;
+}
+
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3 {
+    color: #fff;
+    font-weight: 800;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+}
+
+.prose-invert h1 {
+    font-size: 1.5rem;
+}
+
+.prose-invert h2 {
+    font-size: 1.25rem;
+}
+
+.prose-invert h3 {
+    font-size: 1.1rem;
+}
+
+/* Premium Table Styling */
+.prose-invert table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 1.5rem 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.prose-invert th {
+    background: rgba(99, 102, 241, 0.1);
+    color: #fff;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prose-invert td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+}
+
+.prose-invert tr:last-child td {
+    border-bottom: none;
+}
+
+.prose-invert tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Checklist Styling */
+.prose-invert ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.prose-invert li {
+    position: relative;
+    padding-left: 1.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.prose-invert li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: bold;
+}
+
+/* Premium Badge */
+.premium-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: linear-gradient(90deg, #6366f1, #a855f7);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.prose-invert hr {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    margin: 2rem 0;
 }
 
 /* Privacy Notice & Censorship Styles */

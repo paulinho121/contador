@@ -13,6 +13,8 @@
     "@google/genai": "^1.38.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "vite-plugin-node-polyfills": "^0.25.0"
   },
   "devDependencies": {

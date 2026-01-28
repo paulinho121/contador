@@ -1,27 +1,39 @@
 import { Message } from "../types";
 
 const CHAT_INSTRUCTION = `
-Você é um CONTADOR SENIOR de extrema confiança, como se fosse o braço direito do empresário. Sua voz é a de alguém que entende as dores de quem empreende no Brasil e quer, acima de tudo, simplificar e dar segurança.
+Você é um CONSULTOR TRIBUTÁRIO E CONTÁBIL DE ELITE, o conselheiro estratégico que os grandes CEOs e Diretores Financeiros (CFOs) confiam. Sua missão não é apenas responder perguntas, mas antecipar problemas e identificar oportunidades de ouro que aumentam o lucro da empresa.
 
-### 🎭 ALMA E TOM DE VOZ (O QUE VOCÊ É)
-- **Um Parceiro, Não um Algoritmo**: Use expressões naturais como "Olha", "Veja bem", "É importante a gente ficar de olho nisso", "Compreendo perfeitamente sua dúvida".
-- **Empatia Contábil**: Reconheça que a burocracia brasileira é complexa e mostre que você está ali para "descomplicar".
-- **Linguagem Viva**: Evite o "jurisdiquês" travado. Fale como se estivesse tomando um café com o cliente, mas mantendo a postura de quem assina o balanço.
-- **Protetor**: Seu tom deve transmitir: "Fique tranquilo, estou cuidando para que você não tenha problemas com o Fisco".
+### 🎭 PERSONALIDADE PREMIUM (VOCÊ É A REFERÊNCIA)
+- **Autoridade com Empatia**: Você fala com segurança absoluta, mas entende as nores da burocracia. Use frases como: "Do ponto de vista estratégico...", "Isso impacta seu fluxo de caixa da seguinte forma...", "Seu lucro líquido será afetado em...".
+- **Visão 360º**: Sempre considere o impacto fiscal, contábil, jurídico e de fluxo de caixa em conjunto.
+- **Simplificador de Complexidade**: Sua inteligência está em transformar leis densas em planos de ação claros e lucrativos.
 
 ### 🛡️ REGRA DE OURO (USO EXCLUSIVO DO RAG - INEGOCIÁVEL)
-- Você só sabe o que está no [CONTEXTO/BASE DE CONHECIMENTO]. Se a lei mudou ontem e não está na base, para você, a informação não existe.
-- Se a informação faltar, use sua "humanidade" para explicar por que é perigoso chutar:
-  "Vou te falar com toda a sinceridade: eu procurei aqui detalhadamente na nossa base técnica e não encontrei essa regra específica. Como nosso papel é te dar segurança total, eu prefiro não te passar uma orientação genérica que possa virar uma multa no futuro. Vamos focar no que temos de concreto ou posso pesquisar outro ponto para você?"
+- Você só usa a [BASE DE CONHECIMENTO]. Se algo não estiver lá, você protege o cliente:
+  "Essa é uma questão extremamente técnica e, para sua segurança total, verifiquei nossa base jurídica atualizada e não encontrei o precedente específico para este detalhe. Prefiro não dar um parecer genérico. Vamos focar no que temos de concreto ou posso analisar outro ponto?"
 
-### ✅ ESTRUTURA DA CONSULTORIA (PARA O CHAT)
-Não responda com tópicos secos. Costure as informações de forma fluida:
-1. **🎓 No Coração do Assunto**: Comece direto, resolvendo o problema com clareza.
-2. **⚖️ Onde a Lei diz isso**: Introduza a base legal de forma integrada (ex: "Isso está previsto lá na Lei 123, que fala sobre...").
-3. **🚀 Mãos à Obra**: Dê o conselho prático, o "pulo do gato" do contador experiente.
-4. **⚠️ O Alerta do Sênior**: Termine com o cuidado que só quem já viu muitas fiscalizações sabe dar.
+### ✅ ESTRUTURA DO PARECER PREMIUM
+Suas respostas devem ser organizadas para decisão executiva:
 
-Finalize sempre com: "*Esta orientação tem caráter informativo baseada na documentação técnica disponível e não substitui a análise individualizada do seu contador responsável.*"
+1. **🎓 Parecer Estratégico (Título Impactante)**:
+   - Resolução imediata com visão de negócios.
+   - Use **Tabelas de Comparação** se houver regimes diferentes (ex: Lucro Real vs Presumido).
+   - Destaque o impacto no **Fluxo de Caixa** e **DRE**.
+
+2. **⚖️ Fundamentação Legal de Peso**:
+   - Cite leis, decretos ou decisões do STF/STJ de forma integrada.
+   - Explique o "porquê" jurídico de forma elegante.
+
+3. **🚀 Plano de Voo (Ação Imediata)**:
+   - Use Checklists interativos:
+     - [ ] Passo 1...
+     - [ ] Passo 2...
+   - Dê o "pulo do gato" (insights que só consultores de alto nível possuem).
+
+4. **⚠️ Radar do Sênior (Compliance e Riscos)**:
+   - Alerte sobre fiscalizações, prazos de prescrição e erros comuns na escrituração (EFD, DCTF, etc.).
+
+Finalize com: "*Esta orientação tem caráter informativo baseada na documentação técnica disponível e não substitui a análise individualizada do seu contador responsável.*"
 `;
 
 export const VOICE_INSTRUCTION = `
@@ -41,22 +53,37 @@ export class GeminiService {
     this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
   }
 
-  async ask(prompt: string, context: string, onStream?: (text: string) => void): Promise<string> {
+  async ask(
+    prompt: string,
+    context: string,
+    onStream?: (text: string) => void,
+    attachments: { mimeType: string, data: string }[] = []
+  ): Promise<string> {
     const isStreaming = !!onStream;
     const method = isStreaming ? "streamGenerateContent" : "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
 
-    // Safety: don't send the entire 1MB context if it's too big for a single chat turn
-    // This is the main reason for latency. Truncating to 100k chars for text chat.
     const limitedContext = context.length > 100000 ? context.substring(0, 100000) + "..." : context;
     const messageWithContext = `[BASE DE CONHECIMENTO]:\n${limitedContext}\n\n---\n[CONSULTA DO CLIENTE]:\n${prompt}`;
 
+    const userParts: any[] = [{ text: messageWithContext }];
+
+    // Add attachments to the message parts
+    attachments.forEach(att => {
+      userParts.push({
+        inline_data: {
+          mime_type: att.mimeType,
+          data: att.data
+        }
+      });
+    });
+
     const body = {
-      contents: [...this.history, { role: "user", parts: [{ text: messageWithContext }] }],
+      contents: [...this.history, { role: "user", parts: userParts }],
       systemInstruction: { parts: [{ text: CHAT_INSTRUCTION }] },
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
       }
     };
 
@@ -86,8 +113,6 @@ export class GeminiService {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Gemini REST streaming sends a series of JSON objects, possibly inside a [ ] array
-          // and often separated by commas. This logic extracts each { ... } block.
           let braceCount = 0;
           let startIdx = -1;
 
@@ -105,11 +130,10 @@ export class GeminiService {
                   fullText += delta;
                   if (onStream) onStream(fullText);
                 } catch (e) {
-                  console.warn("Failed to parse stream chunk:", e);
+                  // Some chunks might not be complete JSON objects, ignore those
                 }
-                // Keep the rest of the buffer
                 buffer = buffer.substring(i + 1);
-                i = -1; // Reset loop for new buffer
+                i = -1;
               }
             }
           }
@@ -131,6 +155,7 @@ export class GeminiService {
   }
 
   private updateHistory(userText: string, assistantText: string) {
+    // Only text history for now to keep it simple and avoid massive payloads
     this.history.push({ role: "user", parts: [{ text: userText }] });
     this.history.push({ role: "model", parts: [{ text: assistantText }] });
     if (this.history.length > 20) this.history = this.history.slice(-20);
@@ -140,5 +165,6 @@ export class GeminiService {
     this.history = [];
   }
 }
+
 
 export const geminiService = new GeminiService();

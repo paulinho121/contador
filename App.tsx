@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Message } from './types';
 import { geminiService } from './services/geminiService';
@@ -6,6 +5,8 @@ import { autonomousService } from './services/autonomousService';
 import AuthPage from './components/AuthPage';
 import AdminPanel from './components/AdminPanel';
 import { azureService } from './services/azureService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; email: string } | null>(() => {
@@ -62,6 +63,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [context, setContext] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<{ file: File; base64: string; preview: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const censorPatterns = [
@@ -71,51 +74,50 @@ const App: React.FC = () => {
     /(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}[-\s]?\d{4}/g // Phone
   ];
 
-  const renderContent = (text: string) => {
-    // First handle bold marks
-    const lines = text.split('\n');
-    return lines.map((line, i) => {
-      const boldParts = line.split('**');
-      return (
-        <p key={i} className="mb-2 md:mb-3 last:mb-0 min-h-[1.2em] md:min-h-[1.5em] font-light text-sm md:text-base text-white">
-          {boldParts.map((part, index) => {
-            const isBold = index % 2 === 1;
-            const rawContent = part;
-
-            // Handle sensitive patterns
-            let subParts: (string | React.ReactNode)[] = [rawContent];
-            censorPatterns.forEach(pattern => {
-              const nextSubParts: (string | React.ReactNode)[] = [];
-              subParts.forEach(sp => {
-                if (typeof sp === 'string') {
-                  const matches = sp.match(pattern);
-                  const splits = sp.split(pattern);
-                  splits.forEach((s, si) => {
-                    nextSubParts.push(s);
-                    if (matches && matches[si]) {
-                      nextSubParts.push(<span key={si} className="censored-on-print">{matches[si]}</span>);
-                    }
-                  });
-                } else {
-                  nextSubParts.push(sp);
-                }
-              });
-              subParts = nextSubParts;
-            });
-
-            return (
-              <React.Fragment key={index}>
-                {isBold ? (
-                  <strong className="font-bold text-indigo-300">{subParts}</strong>
-                ) : (
-                  subParts
-                )}
-              </React.Fragment>
-            );
-          })}
-        </p>
-      );
+  const censorText = (text: string) => {
+    let censored = text;
+    censorPatterns.forEach(pattern => {
+      censored = censored.replace(pattern, (match) => `[REDACTED]`);
     });
+    return censored;
+  };
+
+  const renderContent = (content: string, role: string) => {
+    const safeContent = censorText(content);
+    return (
+      <div className="prose prose-invert max-w-none">
+        {role === 'assistant' && content.length > 0 && (
+          <div className="premium-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /></svg>
+            Parecer Premium
+          </div>
+        )}
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed text-slate-200">{children}</p>,
+            strong: ({ children }) => <strong className="font-bold text-indigo-300">{children}</strong>,
+            table: ({ children }) => <div className="overflow-x-auto my-6"><table className="min-w-full">{children}</table></div>,
+            th: ({ children }) => <th className="bg-white/5 px-4 py-2 text-left font-bold text-white border-b border-white/10 uppercase text-[10px] tracking-widest">{children}</th>,
+            td: ({ children }) => <td className="px-4 py-3 text-sm border-b border-white/5 text-slate-300">{children}</td>,
+            h1: ({ children }) => <h1 className="text-xl font-black text-white italic uppercase tracking-tighter mb-4">{children}</h1>,
+            h2: ({ children }) => <h2 className="text-lg font-bold text-indigo-200 mb-3">{children}</h2>,
+            h3: ({ children }) => <h3 className="text-base font-bold text-slate-200 mb-2">{children}</h3>,
+            ul: ({ children }) => <ul className="space-y-2 mb-4">{children}</ul>,
+            li: ({ children }) => (
+              <li className="flex gap-2 items-start">
+                <span className="text-indigo-400 mt-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </span>
+                <span className="flex-1">{children}</span>
+              </li>
+            ),
+          }}
+        >
+          {safeContent}
+        </ReactMarkdown>
+      </div>
+    );
   };
 
   const scrollToBottom = () => {
@@ -126,9 +128,47 @@ const App: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter((file: File) => {
+      const type = file.type;
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      return type.startsWith('image/') ||
+        type === 'application/pdf' ||
+        type === 'text/xml' ||
+        extension === 'xml';
+    });
+
+    const newFiles = await Promise.all(validFiles.map(async (file: File) => {
+      return new Promise<{ file: File; base64: string; preview: string }>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          let preview = '';
+          if (file.type.startsWith('image/')) {
+            preview = reader.result as string;
+          } else if (file.type === 'application/pdf') {
+            preview = 'pdf-icon';
+          } else {
+            preview = 'xml-icon';
+          }
+          resolve({ file, base64, preview });
+        };
+        reader.readAsDataURL(file);
+      });
+    }));
+
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -138,7 +178,15 @@ const App: React.FC = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+
+    // Preparar anexos para a API
+    const attachments = selectedFiles.map(f => ({
+      mimeType: f.file.type || (f.file.name.endsWith('.xml') ? 'text/xml' : 'application/octet-stream'),
+      data: f.base64
+    }));
+
     setInput('');
+    setSelectedFiles([]);
     setIsLoading(true);
 
     const assistantMsgId = (Date.now() + 1).toString();
@@ -151,11 +199,11 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, placeholderMsg]);
 
     try {
-      await geminiService.ask(input, context, (fullText) => {
+      await geminiService.ask(input || "Analise os arquivos enviados", context, (fullText) => {
         setMessages(prev => prev.map(m =>
           m.id === assistantMsgId ? { ...m, content: fullText } : m
         ));
-      });
+      }, attachments);
     } catch (error) {
       console.error(error);
       setMessages(prev => prev.map(m =>
@@ -310,11 +358,11 @@ const App: React.FC = () => {
                     {m.role === 'user' ? (
                       <span className="text-[10px] font-bold uppercase">{user?.name.substring(0, 1)}</span>
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" md:width="20" md:height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /></svg>
                     )}
                   </div>
                   <div className="flex-1 prose prose-invert prose-sm md:prose-base max-w-none">
-                    {renderContent(m.content)}
+                    {renderContent(m.content, m.role)}
                   </div>
                 </div>
               </div>
@@ -339,24 +387,70 @@ const App: React.FC = () => {
 
         <div className="input-container">
           <form onSubmit={handleSubmit} className="input-wrapper">
+            {selectedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4 p-2 bg-slate-800/30 rounded-xl border border-white/5">
+                {selectedFiles.map((f, i) => (
+                  <div key={i} className="relative group/file w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                    {f.file.type.startsWith('image/') ? (
+                      <img src={f.preview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
+                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        <span className="text-[8px] text-white/50 truncate w-full text-center mt-1 px-1">
+                          {f.file.name.split('.').pop()?.toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="relative group">
+              <div className="absolute left-2 top-2 bottom-2 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 md:p-3 text-slate-400 hover:text-indigo-400 transition-colors"
+                  title="Anexar arquivos (Imagens, PDF, XML)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.51a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  multiple
+                  accept="image/*,.pdf,.xml"
+                  className="hidden"
+                />
+              </div>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Pergunte qualquer coisa sobre contabilidade..."
-                className="w-full bg-slate-800/50 border border-white/10 rounded-2xl py-4 md:py-5 pl-5 md:pl-6 pr-14 text-sm md:text-base text-white outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-slate-500"
+                placeholder="Pergunte qualquer coisa ou envie um arquivo para análise..."
+                className="w-full bg-slate-800/50 border border-white/10 rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-14 text-sm md:text-base text-white outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-slate-500"
               />
               <button
                 type="submit"
-                disabled={!input.trim() || isLoading}
+                disabled={(!input.trim() && selectedFiles.length === 0) || isLoading}
                 className="absolute right-2 md:right-3 top-2 md:top-3 bottom-2 md:bottom-3 px-4 glass-button rounded-xl flex items-center justify-center hover:bg-indigo-600/30 disabled:opacity-20 transition-all"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
               </button>
             </div>
             <p className="privacy-notice mt-4 text-[10px] md:text-[11px] font-bold text-indigo-300/60 text-center tracking-widest uppercase">
-              ⚠️ Aviso de Privacidade: Nenhuma informação desta sessão é armazenada em nosso banco de dados. Tudo é processado de forma volátil e segura.
+              ⚠️ Análise Multimodal Ativa: Suporta Imagens, Notas Fiscais (XML) e Documentos (PDF).
             </p>
           </form>
         </div>
