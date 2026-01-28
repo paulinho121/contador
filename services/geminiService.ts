@@ -136,8 +136,8 @@ export class GeminiService {
       contents: [...this.history, { role: "user", parts: userParts }],
       systemInstruction: { parts: [{ text: CHAT_INSTRUCTION }] },
       generationConfig: {
-        temperature: 0.1, // Reduzido para maior precisão técnica em cálculos de XML
-        maxOutputTokens: 2048,
+        temperature: 0.4,
+        maxOutputTokens: 8192,
       }
     };
 
