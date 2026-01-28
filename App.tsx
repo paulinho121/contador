@@ -26,6 +26,8 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : null;
   });
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -205,6 +207,46 @@ const App: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Seu navegador não suporta reconhecimento de voz.");
+      return;
+    }
+
+    const SpeechRecognition = (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+
+    recognition.start();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchEndX - touchStartX.current;
+
+    if (diff > 50 && !isSidebarOpen) {
+      setIsSidebarOpen(true); // Swipe right to open
+    } else if (diff < -50 && isSidebarOpen) {
+      setIsSidebarOpen(false); // Swipe left to close
+    }
+    touchStartX.current = null;
+  };
+
   const removeFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -299,7 +341,11 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="app-container font-sans selection:bg-indigo-500/30">
+    <div
+      className="app-container font-sans selection:bg-indigo-500/30"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Neural Background */}
       <div className="neural-bg">
         <div className="neural-orb orb-1"></div>
@@ -371,7 +417,7 @@ const App: React.FC = () => {
 
       <main className="main-content">
         {/* Mobile Header */}
-        <header className="lg:hidden h-14 border-b border-white/5 flex items-center justify-between px-4 bg-slate-900/50 backdrop-blur-md">
+        <header className="lg:hidden h-14 border-b border-white/5 flex items-center justify-between px-4 bg-slate-900/50 backdrop-blur-md safe-top box-content">
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" x2="21" y1="12" y2="12" /><line x1="3" x2="21" y1="6" y2="6" /><line x1="3" x2="21" y1="18" y2="18" /></svg>
           </button>
@@ -518,6 +564,7 @@ const App: React.FC = () => {
                   onChange={handleFileChange}
                   multiple
                   accept="image/*,.pdf,.xml"
+                  capture="environment"
                   className="hidden"
                 />
               </div>
@@ -525,9 +572,19 @@ const App: React.FC = () => {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Pergunte qualquer coisa ou envie um arquivo para análise..."
-                className="w-full bg-slate-800/50 border border-white/10 rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-14 text-sm md:text-base text-white outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-slate-500"
+                placeholder={isListening ? "Ouvindo seu pedido..." : "Pergunte qualquer coisa ou envie um arquivo para análise..."}
+                className={`w-full bg-slate-800/50 border border-white/10 rounded-2xl py-4 md:py-5 pl-12 md:pl-14 pr-24 text-sm md:text-base text-white outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-slate-500 ${isListening ? 'ring-2 ring-indigo-500 border-indigo-500' : ''}`}
               />
+              <div className="absolute right-14 md:right-16 top-2 md:top-3 bottom-2 md:bottom-3 flex items-center">
+                <button
+                  type="button"
+                  onClick={startListening}
+                  className={`p-2 rounded-xl transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-indigo-400'}`}
+                  title="Falar com Dr. Contador"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>
+                </button>
+              </div>
               <button
                 type="submit"
                 disabled={(!input.trim() && selectedFiles.length === 0) || isLoading}
@@ -536,7 +593,7 @@ const App: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
               </button>
             </div>
-            <p className="privacy-notice mt-4 text-[10px] md:text-[11px] font-bold text-indigo-300/60 text-center tracking-widest uppercase">
+            <p className="privacy-notice mt-4 text-[10px] md:text-[11px] font-bold text-indigo-300/60 text-center tracking-widest uppercase safe-bottom">
               ⚠️ Análise Multimodal Ativa: Suporta Imagens, Notas Fiscais (XML) e Documentos (PDF).
             </p>
           </form>

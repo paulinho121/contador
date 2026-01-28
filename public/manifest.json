@@ -1,0 +1,22 @@
+{
+    "name": "Dr. Contador - Consultoria Tributária",
+    "short_name": "Dr. Contador",
+    "description": "Consultoria contábil e tributária premium processada por IA",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#020617",
+    "theme_color": "#6366f1",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

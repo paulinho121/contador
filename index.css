@@ -87,6 +87,42 @@ body {
     }
 }
 
+/* Mobile Optimization: Reduce GPU load and support safe areas */
+@media (max-width: 768px) {
+    .neural-orb {
+        animation: none !important;
+        filter: blur(60px);
+        opacity: 0.2;
+    }
+
+    .safe-top {
+        padding-top: env(safe-area-inset-top) !important;
+    }
+
+    .safe-bottom {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+    }
+}
+
+/* Optimization for mobile: static orbs to save battery */
+@media (max-width: 768px) {
+    .neural-orb {
+        animation: none;
+        filter: blur(60px);
+        opacity: 0.25;
+    }
+
+    .orb-1 {
+        width: 80vw;
+        height: 80vw;
+    }
+
+    .orb-2 {
+        width: 70vw;
+        height: 70vw;
+    }
+}
+
 /* Glassmorphism System */
 .glass-panel {
     background: var(--glass-surface);
@@ -388,6 +424,7 @@ h3 {
 
 .input-container {
     padding: 1.5rem 1rem;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
     position: relative;
     background: linear-gradient(to top, #020617 80%, transparent);
 }
