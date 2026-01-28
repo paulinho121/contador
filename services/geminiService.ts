@@ -53,15 +53,15 @@ export class GeminiService {
 
     const body = {
       contents: [...this.history, { role: "user", parts: userParts }],
-      systemInstruction: {
+      system_instruction: {
         parts: [{ text: `${CHAT_INSTRUCTION}\n\n[BASE DE CONHECIMENTO]:\n${limitedRAG}` }]
       },
-      generationConfig: {
+      generation_config: {
         temperature: 0.1,
         max_output_tokens: 8192,
         top_p: 0.95,
       },
-      safetySettings: [
+      safety_settings: [
         { category: "HATE_SPEECH", threshold: "BLOCK_NONE" },
         { category: "HARASSMENT", threshold: "BLOCK_NONE" },
         { category: "SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
