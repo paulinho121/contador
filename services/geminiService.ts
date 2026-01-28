@@ -37,7 +37,7 @@ export class GeminiService {
     const method = isStreaming ? "streamGenerateContent" : "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
 
-    const limitedRAG = context.length > 60000 ? context.substring(0, 60000) + "..." : context;
+    const limitedRAG = context.length > 50000 ? context.substring(0, 50000) + "..." : context;
 
     // Construção das partes da mensagem atual
     const userParts: any[] = [];
@@ -46,7 +46,7 @@ export class GeminiService {
     });
     attachments.forEach(att => {
       userParts.push({
-        inline_data: { mime_type: att.mimeType, data: att.data }
+        inline_data: { mimeType: att.mimeType, data: att.data }
       });
     });
     userParts.push({ text: prompt });
@@ -62,10 +62,10 @@ export class GeminiService {
         topP: 0.95,
       },
       safetySettings: [
-        { category: "HATE_SPEECH", threshold: "OFF" },
-        { category: "HARASSMENT", threshold: "OFF" },
-        { category: "SEXUALLY_EXPLICIT", threshold: "OFF" },
-        { category: "DANGEROUS_CONTENT", threshold: "OFF" }
+        { category: "HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
       ]
     };
 
@@ -77,8 +77,10 @@ export class GeminiService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Erro na API Gemini");
+        const errorData = await response.json().catch(() => ({}));
+        const msg = errorData.error?.message || `Erro HTTP ${response.status}`;
+        console.error("🚨 Gemini API Detailed Error:", errorData);
+        throw new Error(msg);
       }
 
       if (isStreaming) {
@@ -111,13 +113,13 @@ export class GeminiService {
                   const jsonStr = buffer.substring(objectStart, i + 1);
                   try {
                     const json = JSON.parse(jsonStr);
+                    if (json.error) throw new Error(json.error.message);
+
                     const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
                     fullText += text;
                     if (onStream) onStream(fullText);
-                  } catch (e) {
-                    // Se falhar o parse, talvez o objeto esteja incompleto entre chunks
-                    // Mas como já temos o par de chaves, deveria funcionar.
-                    // Se for um erro de sintaxe real, ignoramos e continuamos procurando.
+                  } catch (e: any) {
+                    if (e.message?.includes("Stream not supported") || e.message?.includes("HTTP")) throw e;
                   }
                   startIdx = i + 1;
                   found = true;
