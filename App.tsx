@@ -8,6 +8,18 @@ import { azureService } from './services/azureService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const WELCOME_GUIDE = `
+# Como obter o melhor Parecer Premium? 🎓
+Para que eu possa entregar uma consultoria de elite, tente estruturar sua pergunta seguindo estes pilares:
+
+1. **Contexto Completo**: Informe seu regime tributário (Simples, Presumido ou Real).
+2. **Dados Técnicos**: Se possível, mencione NCMs ou CBOs específicos.
+3. **O Objetivo**: O que você busca? Economia de caixa, evitar multas ou planejamento?
+4. **Anexos**: Envie XMLs de notas fiscais ou PDFs para uma análise multimodal profunda.
+
+**Exemplo Ideal**: *"Sou do Lucro Real e quero saber se posso tomar crédito de PIS/COFINS sobre este XML de insumo que acabei de anexar."*
+`;
+
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; email: string } | null>(() => {
     const saved = localStorage.getItem('contador_at_user');
@@ -55,7 +67,7 @@ const App: React.FC = () => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Olá! Sou seu **Contador Sênior de Confiança**. No que posso te orientar hoje? Estou aqui para garantir a segurança fiscal e contábil do seu negócio.',
+      content: WELCOME_GUIDE,
       timestamp: new Date()
     }
   ]);
@@ -220,7 +232,7 @@ const App: React.FC = () => {
     setMessages([{
       id: Date.now().toString(),
       role: 'assistant',
-      content: 'Base de dados resetada. Iniciando nova análise.',
+      content: WELCOME_GUIDE,
       timestamp: new Date()
     }]);
   };
