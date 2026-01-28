@@ -193,18 +193,21 @@ export class GeminiService {
           }
         }
 
+        if (!fullText) throw new Error("A IA não retornou nenhum conteúdo.");
+
         this.updateHistory(prompt, fullText);
         return fullText;
       }
       else {
         const data = await response.json();
         const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!assistantText) throw new Error("A IA não retornou nenhum conteúdo.");
         this.updateHistory(prompt, assistantText);
         return assistantText;
       }
     } catch (error: any) {
       console.error("Gemini Error:", error);
-      return `Erro: ${error.message}`;
+      throw error; // Lançar para o App.tsx tratar
     }
   }
 
