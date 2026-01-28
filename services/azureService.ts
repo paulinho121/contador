@@ -173,10 +173,25 @@ class AzureService {
             if (resources.length > 0) {
                 const user = resources[0];
                 user.lastActive = new Date().toISOString();
-                await container.item(user.id, user.partitionKey).replace(user);
+
+                // Tenta atualizar usando a partition key original. Se falhar, tenta sem ou com ID.
+                try {
+                    const pk = user.partitionKey || "user";
+                    await container.item(user.id, pk).replace(user);
+                } catch (replaceErr: any) {
+                    if (replaceErr.code === 404) {
+                        console.warn(`⚠️ 404 detectado no replace para ${email}. Tentando correção de partição...`);
+                        // Em alguns casos de migração ou containers mal configurados, a PK pode ser o próprio ID
+                        await container.item(user.id, user.id).replace(user);
+                    } else {
+                        throw replaceErr;
+                    }
+                }
+            } else {
+                console.warn(`⚠️ Usuário ${email} não encontrado na base para atualização de atividade.`);
             }
-        } catch (error) {
-            console.error("Erro ao atualizar atividade:", error);
+        } catch (error: any) {
+            console.error(`❌ Erro persistente ao atualizar atividade de ${email}:`, error.message);
         }
     }
 

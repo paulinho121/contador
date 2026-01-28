@@ -142,6 +142,7 @@ export class GeminiService {
     };
 
     try {
+      console.log("📡 Enviando requisição para Gemini API...", { isStreaming });
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -150,6 +151,7 @@ export class GeminiService {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("❌ Erro na API Gemini:", errorData);
         throw new Error(errorData.error?.message || "Erro na API Gemini");
       }
 
@@ -161,53 +163,82 @@ export class GeminiService {
         const decoder = new TextDecoder();
         let buffer = "";
 
+        console.log("⏳ Iniciando leitura do stream...");
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
 
-          let braceCount = 0;
-          let startIdx = -1;
+          // Processamento robusto de JSON fragmentado no stream
+          let startIdx = 0;
+          while (true) {
+            let braceCount = 0;
+            let foundObject = false;
+            let objectStart = -1;
 
-          for (let i = 0; i < buffer.length; i++) {
-            if (buffer[i] === '{') {
-              if (braceCount === 0) startIdx = i;
-              braceCount++;
-            } else if (buffer[i] === '}') {
-              braceCount--;
-              if (braceCount === 0 && startIdx !== -1) {
-                const jsonStr = buffer.substring(startIdx, i + 1);
-                try {
-                  const json = JSON.parse(jsonStr);
-                  const delta = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                  fullText += delta;
-                  if (onStream) onStream(fullText);
-                } catch (e) {
-                  // Some chunks might not be complete JSON objects, ignore those
+            for (let i = startIdx; i < buffer.length; i++) {
+              if (buffer[i] === '{') {
+                if (braceCount === 0) objectStart = i;
+                braceCount++;
+              } else if (buffer[i] === '}') {
+                braceCount--;
+                if (braceCount === 0 && objectStart !== -1) {
+                  const jsonStr = buffer.substring(objectStart, i + 1);
+                  try {
+                    const json = JSON.parse(jsonStr);
+                    const candidates = json.candidates;
+
+                    if (candidates && candidates.length > 0) {
+                      const delta = candidates[0]?.content?.parts?.[0]?.text || "";
+                      fullText += delta;
+                      if (onStream) onStream(fullText);
+                    } else if (json.error) {
+                      console.error("❌ Erro no stream:", json.error);
+                      throw new Error(json.error.message);
+                    } else if (json.promptFeedback?.blockReason) {
+                      console.warn("⚠️ Conteúdo bloqueado:", json.promptFeedback.blockReason);
+                      fullText += `\n\n⚠️ **Aviso de Segurança:** O conteúdo foi parcialmente bloqueado por: ${json.promptFeedback.blockReason}`;
+                      if (onStream) onStream(fullText);
+                    }
+                  } catch (e) {
+                    // Ignora chunks incompletos ou erros de parse intermediários
+                  }
+                  startIdx = i + 1;
+                  foundObject = true;
+                  break;
                 }
-                buffer = buffer.substring(i + 1);
-                i = -1;
               }
             }
+
+            if (!foundObject) break;
           }
+
+          // Mantém no buffer apenas o que não foi processado
+          buffer = buffer.substring(startIdx);
         }
 
-        if (!fullText) throw new Error("A IA não retornou nenhum conteúdo.");
+        if (!fullText) {
+          console.warn("⚠️ Stream finalizado sem conteúdo. Verifique filtros de segurança ou o prompt.");
+          throw new Error("A IA não retornou nenhum conteúdo. Tente reformular a pergunta.");
+        }
 
         this.updateHistory(prompt, fullText);
         return fullText;
       }
       else {
         const data = await response.json();
+        console.log("✅ Resposta recebida (não-streaming):", data);
         const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!assistantText) throw new Error("A IA não retornou nenhum conteúdo.");
         this.updateHistory(prompt, assistantText);
         return assistantText;
       }
     } catch (error: any) {
-      console.error("Gemini Error:", error);
-      throw error; // Lançar para o App.tsx tratar
+      console.error("🚨 Detalhes do Erro Gemini:", error);
+      throw error;
     }
   }
 
