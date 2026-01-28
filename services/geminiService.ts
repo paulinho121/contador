@@ -1,35 +1,32 @@
-import { Message } from "../types";
+import { createClient } from "@google/genai";
 
 const CHAT_INSTRUCTION = `
-Você é um CONSULTOR TRIBUTÁRIO E CONTÁBIL DE ELITE. Sua missão é fornecer pareceres de alta precisão técnica, elisão fiscal estratégica e segurança jurídica.
+Você é o "Dr. Contador", um CONSULTOR TRIBUTÁRIO E CONTÁBIL DE ELITE. 
+Sua missão é dar pareceres técnicos de altíssimo nível, focados em segurança jurídica e elisão fiscal estratégica.
 
-### 🛡️ DIRETRIZES DE CONTINUIDADE E CONTEXTO
-- **Mantenha o Contexto**: Se o usuário fizer uma pergunta curta como "faça uma tabela" ou "explique melhor", entenda que ele se refere ao assunto que está sendo discutido na sala no momento. Nunca mude de assunto abruptamente a menos que o usuário peça.
-- **Base de Conhecimento (RAG)**: Use a [BASE DE CONHECIMENTO] fornecida como sua fonte primária de verdade técnica. Se o assunto atual não estiver na base, aplique seus conhecimentos gerais de legislação brasileira, mas SEMPRE com um aviso de que aquela informação específica não consta na base técnica oficial da empresa.
-- **Elisão vs Evasão**: Promova apenas práticas legais de economia tributária.
+### 🛡️ PROTOCOLO DE CONVERSA (CRÍTICO)
+1. **MEMÓRIA ATIVA**: Se o usuário fizer pedidos curtos como "faça uma tabela", "explique melhor" ou "prossiga", você DEVE olhar o histórico imediato da conversa. Não mude de assunto. Se falavam de Regime de Caixa, a tabela é sobre Regime de Caixa.
+2. **BASE DE CONHECIMENTO (RAG)**: Use prioritariamente a [BASE DE CONHECIMENTO] fornecida no sistema. Se o tema não estiver lá, use seu conhecimento geral de legislação brasileira, mas SEMPRE adicione um aviso: "Esta informação suplementa nossa base técnica oficial".
+3. **TABELAS COMPLETAS**: Ao gerar tabelas, certifique-se de fechar todas as linhas e colunas. NUNCA pare no meio de uma tabela.
 
-### ✅ ESTRUTURA DO PARECER PREMIUM (OBRIGATÓRIO)
-Sempre que possível, estruture suas respostas assim:
-1. 🎓 **Parecer Estratégico**: Resumo executivo focado em decisões.
+### ✅ ESTRUTURA DO PARECER PREMIUM
+1. 🎓 **Parecer Estratégico**: Resumo executivo para decisão.
 2. ⚖️ **Fundamentação Legal**: Citação de leis/normas.
-3. 🚀 **Plano de Voo**: Checklist de ações.
-4. ⚠️ **Radar do Sênior**: Alertas de compliance.
+3. 🚀 **Plano de Voo**: Checklist prático [ ] ...
+4. ⚠️ **Radar do Sênior**: Alertas de compliance e riscos.
 
-Finalize sempre com o aviso legal padrão sobre consulta ao contador responsável.
-`;
-
-export const VOICE_INSTRUCTION = `
-Você é o "Dr. Contador" em uma conversa por voz. Seja humano, empático e direto.
-Use o RAG como base, mas fale de forma natural. 
-Mantenha a continuidade do assunto discutido.
+Finalize sempre com: "*Esta orientação tem caráter informativo baseado na documentação técnica disponível e não substitui a análise individualizada do seu contador responsável.*"
 `;
 
 export class GeminiService {
-  private apiKey: string;
+  private client;
   private history: any[] = [];
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+    this.client = createClient({
+      apiKey,
+    });
   }
 
   async ask(
@@ -40,107 +37,81 @@ export class GeminiService {
     textParts: string[] = []
   ): Promise<string> {
     const isStreaming = !!onStream;
-    const method = isStreaming ? "streamGenerateContent" : "generateContent";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
+    // RAG limitado para dar espaço ao histórico
+    const limitedRAG = context.length > 50000 ? context.substring(0, 50000) + "..." : context;
 
-    const limitedRAG = context.length > 80000 ? context.substring(0, 80000) + "..." : context;
+    const currentParts: any[] = [];
 
-    // Construção das partes da mensagem atual
-    const userParts: any[] = [];
-
-    // Incluímos os arquivos apenas na mensagem atual
+    // Inclusão de XMLs/Textos
     textParts.forEach((txt, idx) => {
-      userParts.push({ text: `[ARQUIVO ANEXO ${idx + 1}]:\n${txt}\n` });
+      currentParts.push({ text: `[ARQUIVO ANEXO ${idx + 1}]:\n${txt}\n` });
     });
 
+    // Inclusão de Imagens/PDFs
     attachments.forEach(att => {
-      userParts.push({
-        inline_data: { mime_type: att.mimeType, data: att.data }
+      currentParts.push({
+        inline_data: { mimeType: att.mimeType, data: att.data }
       });
     });
 
-    userParts.push({ text: prompt });
-
-    // Injetamos o RAG e a instrução no SystemInstruction para ele ser a "lei" constante
-    const fullSystemInstruction = `${CHAT_INSTRUCTION}\n\n[BASE DE CONHECIMENTO ATUALIZADA]:\n${limitedRAG}`;
-
-    const body = {
-      contents: [...this.history, { role: "user", parts: userParts }],
-      systemInstruction: { parts: [{ text: fullSystemInstruction }] },
-      generationConfig: {
-        temperature: 0.2, // Um pouco mais baixo para evitar "alucinações" de assunto
-        maxOutputTokens: 8192,
-        topP: 0.95,
-      }
-    };
+    currentParts.push({ text: prompt });
 
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Erro na API Gemini");
-      }
-
       if (isStreaming) {
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error("Stream not supported");
-
         let fullText = "";
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-
-          let startIdx = 0;
-          while (true) {
-            let braceCount = 0;
-            let objectStart = -1;
-            let found = false;
-
-            for (let i = startIdx; i < buffer.length; i++) {
-              if (buffer[i] === '{') {
-                if (braceCount === 0) objectStart = i;
-                braceCount++;
-              } else if (buffer[i] === '}') {
-                braceCount--;
-                if (braceCount === 0 && objectStart !== -1) {
-                  const jsonStr = buffer.substring(objectStart, i + 1);
-                  try {
-                    const json = JSON.parse(jsonStr);
-                    const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                    fullText += text;
-                    if (onStream) onStream(fullText);
-                  } catch (e) { }
-                  startIdx = i + 1;
-                  found = true;
-                  break;
-                }
-              }
-            }
-            if (!found) break;
+        const stream = await this.client.models.generateContentStream({
+          model: "gemini-2.0-flash",
+          systemInstruction: {
+            parts: [{ text: `${CHAT_INSTRUCTION}\n\n[BASE DE CONHECIMENTO]:\n${limitedRAG}` }]
+          },
+          contents: [
+            ...this.history,
+            { role: "user", parts: currentParts }
+          ],
+          config: {
+            temperature: 0.1, // Minimiza variações e cortes
+            maxOutputTokens: 8192,
+            safetySettings: [
+              { category: "HATE_SPEECH", threshold: "BLOCK_NONE" },
+              { category: "HARASSMENT", threshold: "BLOCK_NONE" },
+              { category: "SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+              { category: "DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
           }
-          buffer = buffer.substring(startIdx);
+        });
+
+        for await (const chunk of stream.stream) {
+          const chunkText = chunk.text();
+          if (chunkText) {
+            fullText += chunkText;
+            if (onStream) onStream(fullText);
+          }
         }
 
         this.updateHistory(prompt, fullText);
         return fullText;
       } else {
-        const data = await response.json();
-        const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const response = await this.client.models.generateContent({
+          model: "gemini-2.0-flash",
+          systemInstruction: {
+            parts: [{ text: `${CHAT_INSTRUCTION}\n\n[BASE DE CONHECIMENTO]:\n${limitedRAG}` }]
+          },
+          contents: [
+            ...this.history,
+            { role: "user", parts: currentParts }
+          ],
+          config: {
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+          }
+        });
+
+        const assistantText = response.text() || "";
         this.updateHistory(prompt, assistantText);
         return assistantText;
       }
     } catch (error: any) {
-      console.error("🚨 Gemini Error:", error);
+      console.error("🚨 Gemini SDK Error:", error);
       throw error;
     }
   }
@@ -148,8 +119,8 @@ export class GeminiService {
   private updateHistory(userText: string, assistantText: string) {
     this.history.push({ role: "user", parts: [{ text: userText }] });
     this.history.push({ role: "model", parts: [{ text: assistantText }] });
-    // Mantém as últimas 10 trocas (20 mensagens) para contexto
-    if (this.history.length > 20) this.history = this.history.slice(-20);
+    // Mantém histórico focado (5 trocas)
+    if (this.history.length > 10) this.history = this.history.slice(-10);
   }
 
   resetSession() {
@@ -158,4 +129,3 @@ export class GeminiService {
 }
 
 export const geminiService = new GeminiService();
-
