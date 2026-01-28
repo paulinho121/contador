@@ -203,19 +203,16 @@ const App: React.FC = () => {
     e.preventDefault();
     if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
 
-    // Preparar o prompt final incluindo conteúdos de texto (XML)
-    let finalPrompt = input || (selectedFiles.length > 0 ? "Analise os arquivos enviados" : "");
-    const xmlContents = selectedFiles
+    // Coletar conteúdos de texto (XML) separadamente
+    const textParts = selectedFiles
       .filter(f => f.textContent)
-      .map(f => `\n\nCONTÉUDO DO ARQUIVO ${f.file.name}:\n\`\`\`xml\n${f.textContent}\n\`\`\``)
-      .join("");
-
-    finalPrompt += xmlContents;
+      .map(f => `NOME DO ARQUIVO: ${f.file.name}\nCONTEÚDO:\n${f.textContent}`)
+      .filter((txt): txt is string => !!txt);
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input || "Análise de arquivos",
+      content: input || (selectedFiles.length > 0 ? "Análise estratégica de arquivos" : ""),
       timestamp: new Date(),
       attachments: selectedFiles.map(f => ({
         preview: f.preview,
@@ -228,7 +225,7 @@ const App: React.FC = () => {
 
     // Preparar anexos (apenas imagens e PDFs para inline_data)
     const attachments = selectedFiles
-      .filter(f => !f.textContent) // XMLs já estão no prompt
+      .filter(f => !f.textContent) // XMLs já estão no textParts
       .map(f => ({
         mimeType: f.file.type || 'application/octet-stream',
         data: f.base64
@@ -248,11 +245,11 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, placeholderMsg]);
 
     try {
-      await geminiService.ask(finalPrompt, context, (fullText) => {
+      await geminiService.ask(input || "Analise estes documentos sob a ótica de um gestor tributário.", context, (fullText) => {
         setMessages(prev => prev.map(m =>
           m.id === assistantMsgId ? { ...m, content: fullText } : m
         ));
-      }, attachments);
+      }, attachments, textParts);
     } catch (error) {
       console.error(error);
       setMessages(prev => prev.map(m =>

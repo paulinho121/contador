@@ -13,7 +13,13 @@ Você é um guardião da integridade. Suas orientações devem sempre seguir est
 ### 🎭 PERSONALIDADE PREMIUM (VOCÊ É A REFERÊNCIA)
 - **Autoridade Ética e Empática**: Você fala com segurança absoluta e austeridade sobre a lei, mas entende as dores de quem empreende. Use: "Do ponto de vista estratégico...", "Fique tranquilo, meu papel é dar segurança para você crescer...", "Isso impacta seu fluxo de caixa da seguinte forma...".
 - **Visão 360º**: Sempre considere o impacto fiscal, contábil, jurídico e de fluxo de caixa em conjunto.
-- **Mestre da Análise Multimodal**: Você tem visão computacional de alta fidelidade. Ao receber **screenshots (prints)**, **PDFs** ou **XMLs**, extraia cada detalhe (datas, valores, CNPJs, NCMs) com precisão cirúrgica. Você é capaz de "ler" recibos, notas fiscais, extratos bancários e contratos complexos.
+- **Mestre da Análise Multimodal**: Você tem visão computacional de alta fidelidade. Ao receber **screenshots (prints)**, **PDFs** ou **XMLs**, extraia cada detalhe (datas, valores, CNPJs, NCMs) com precisão cirúrgica.
+- **Protocolo de Extração XML (NF-e)**: Ao analisar um XML, foque nestas tags para impostos (procure as tags sem os colchetes):
+   - **Valor Total**: [vNF]
+   - **ICMS Próprio**: [vICMS] (dentro de [ICMSTot])
+   - **DIFAL (Partilha)**: Procure por [vICMSUFDest] (Valor para o destino).
+   - **Base de Cálculo**: [vBCUFDest]
+   - **Alíquotas**: [pICMSUFDest] (Interestadual) e [pICMSInter] (4%, 7% ou 12%).
 - **Simplificador de Complexidade**: Sua inteligência está em transformar leis densas em planos de ação claros e lucrativos.
 
 ### 🧠 GATILHOS DE ESPECIALISTA (MENTAL MODELS)
@@ -94,18 +100,29 @@ export class GeminiService {
     prompt: string,
     context: string,
     onStream?: (text: string) => void,
-    attachments: { mimeType: string, data: string }[] = []
+    attachments: { mimeType: string, data: string }[] = [],
+    textParts: string[] = [] // Novos blocos de texto (ex: XMLs)
   ): Promise<string> {
     const isStreaming = !!onStream;
     const method = isStreaming ? "streamGenerateContent" : "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
 
     const limitedContext = context.length > 100000 ? context.substring(0, 100000) + "..." : context;
-    const messageWithContext = `[BASE DE CONHECIMENTO]:\n${limitedContext}\n\n---\n[CONSULTA DO CLIENTE]:\n${prompt}`;
 
-    const userParts: any[] = [{ text: messageWithContext }];
+    // Parte 1: Instrução e Contexto
+    const userParts: any[] = [{
+      text: `[ESTRUTURA DE APOIO - RAG]:\n${limitedContext}\n`
+    }];
 
-    // Add attachments to the message parts
+    // Parte 2: Arquivos de Texto (XMLs, etc.)
+    textParts.forEach((txt, idx) => {
+      userParts.push({ text: `[ARQUIVO ANEXO ${idx + 1}]:\n${txt}\n` });
+    });
+
+    // Parte 3: A consulta do cliente
+    userParts.push({ text: `[CONSULTA DO CLIENTE]:\n${prompt}` });
+
+    // Parte 4: Anexos Binários (Imagens, PDFs)
     attachments.forEach(att => {
       userParts.push({
         inline_data: {
@@ -119,7 +136,7 @@ export class GeminiService {
       contents: [...this.history, { role: "user", parts: userParts }],
       systemInstruction: { parts: [{ text: CHAT_INSTRUCTION }] },
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.1, // Reduzido para maior precisão técnica em cálculos de XML
         maxOutputTokens: 2048,
       }
     };
