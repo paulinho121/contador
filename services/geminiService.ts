@@ -1,4 +1,4 @@
-import { createClient } from "@google/genai";
+import { Message } from "../types";
 
 const CHAT_INSTRUCTION = `
 Você é o "Dr. Contador", um CONSULTOR TRIBUTÁRIO E CONTÁBIL DE ELITE. 
@@ -19,14 +19,11 @@ Finalize sempre com: "*Esta orientação tem caráter informativo baseado na doc
 `;
 
 export class GeminiService {
-  private client;
+  private apiKey: string;
   private history: any[] = [];
 
   constructor() {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-    this.client = createClient({
-      apiKey,
-    });
+    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
   }
 
   async ask(
@@ -37,81 +34,112 @@ export class GeminiService {
     textParts: string[] = []
   ): Promise<string> {
     const isStreaming = !!onStream;
-    // RAG limitado para dar espaço ao histórico
-    const limitedRAG = context.length > 50000 ? context.substring(0, 50000) + "..." : context;
+    const method = isStreaming ? "streamGenerateContent" : "generateContent";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
 
-    const currentParts: any[] = [];
+    const limitedRAG = context.length > 60000 ? context.substring(0, 60000) + "..." : context;
 
-    // Inclusão de XMLs/Textos
+    // Construção das partes da mensagem atual
+    const userParts: any[] = [];
     textParts.forEach((txt, idx) => {
-      currentParts.push({ text: `[ARQUIVO ANEXO ${idx + 1}]:\n${txt}\n` });
+      userParts.push({ text: `[ARQUIVO ANEXO ${idx + 1}]:\n${txt}\n` });
     });
-
-    // Inclusão de Imagens/PDFs
     attachments.forEach(att => {
-      currentParts.push({
-        inline_data: { mimeType: att.mimeType, data: att.data }
+      userParts.push({
+        inline_data: { mime_type: att.mimeType, data: att.data }
       });
     });
+    userParts.push({ text: prompt });
 
-    currentParts.push({ text: prompt });
+    const body = {
+      contents: [...this.history, { role: "user", parts: userParts }],
+      systemInstruction: {
+        parts: [{ text: `${CHAT_INSTRUCTION}\n\n[BASE DE CONHECIMENTO]:\n${limitedRAG}` }]
+      },
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 8192,
+        topP: 0.95,
+      },
+      safetySettings: [
+        { category: "HATE_SPEECH", threshold: "OFF" },
+        { category: "HARASSMENT", threshold: "OFF" },
+        { category: "SEXUALLY_EXPLICIT", threshold: "OFF" },
+        { category: "DANGEROUS_CONTENT", threshold: "OFF" }
+      ]
+    };
 
     try {
-      if (isStreaming) {
-        let fullText = "";
-        const stream = await this.client.models.generateContentStream({
-          model: "gemini-2.0-flash",
-          systemInstruction: {
-            parts: [{ text: `${CHAT_INSTRUCTION}\n\n[BASE DE CONHECIMENTO]:\n${limitedRAG}` }]
-          },
-          contents: [
-            ...this.history,
-            { role: "user", parts: currentParts }
-          ],
-          config: {
-            temperature: 0.1, // Minimiza variações e cortes
-            maxOutputTokens: 8192,
-            safetySettings: [
-              { category: "HATE_SPEECH", threshold: "BLOCK_NONE" },
-              { category: "HARASSMENT", threshold: "BLOCK_NONE" },
-              { category: "SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-              { category: "DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-            ]
-          }
-        });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
 
-        for await (const chunk of stream.stream) {
-          const chunkText = chunk.text();
-          if (chunkText) {
-            fullText += chunkText;
-            if (onStream) onStream(fullText);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Erro na API Gemini");
+      }
+
+      if (isStreaming) {
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("Stream not supported");
+
+        let fullText = "";
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          let startIdx = 0;
+          while (true) {
+            let braceCount = 0;
+            let objectStart = -1;
+            let found = false;
+
+            for (let i = startIdx; i < buffer.length; i++) {
+              if (buffer[i] === '{') {
+                if (braceCount === 0) objectStart = i;
+                braceCount++;
+              } else if (buffer[i] === '}') {
+                braceCount--;
+                if (braceCount === 0 && objectStart !== -1) {
+                  const jsonStr = buffer.substring(objectStart, i + 1);
+                  try {
+                    const json = JSON.parse(jsonStr);
+                    const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                    fullText += text;
+                    if (onStream) onStream(fullText);
+                  } catch (e) {
+                    // Se falhar o parse, talvez o objeto esteja incompleto entre chunks
+                    // Mas como já temos o par de chaves, deveria funcionar.
+                    // Se for um erro de sintaxe real, ignoramos e continuamos procurando.
+                  }
+                  startIdx = i + 1;
+                  found = true;
+                  break;
+                }
+              }
+            }
+            if (!found) break;
           }
+          buffer = buffer.substring(startIdx);
         }
 
         this.updateHistory(prompt, fullText);
         return fullText;
       } else {
-        const response = await this.client.models.generateContent({
-          model: "gemini-2.0-flash",
-          systemInstruction: {
-            parts: [{ text: `${CHAT_INSTRUCTION}\n\n[BASE DE CONHECIMENTO]:\n${limitedRAG}` }]
-          },
-          contents: [
-            ...this.history,
-            { role: "user", parts: currentParts }
-          ],
-          config: {
-            temperature: 0.1,
-            maxOutputTokens: 8192,
-          }
-        });
-
-        const assistantText = response.text() || "";
+        const data = await response.json();
+        const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
         this.updateHistory(prompt, assistantText);
         return assistantText;
       }
     } catch (error: any) {
-      console.error("🚨 Gemini SDK Error:", error);
+      console.error("🚨 Gemini Error:", error);
       throw error;
     }
   }
@@ -119,7 +147,6 @@ export class GeminiService {
   private updateHistory(userText: string, assistantText: string) {
     this.history.push({ role: "user", parts: [{ text: userText }] });
     this.history.push({ role: "model", parts: [{ text: assistantText }] });
-    // Mantém histórico focado (5 trocas)
     if (this.history.length > 10) this.history = this.history.slice(-10);
   }
 
