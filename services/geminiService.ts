@@ -46,7 +46,7 @@ export class GeminiService {
     });
     attachments.forEach(att => {
       userParts.push({
-        inline_data: { mimeType: att.mimeType, data: att.data }
+        inline_data: { mime_type: att.mimeType, data: att.data }
       });
     });
     userParts.push({ text: prompt });
@@ -58,8 +58,8 @@ export class GeminiService {
       },
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 8192,
-        topP: 0.95,
+        max_output_tokens: 8192,
+        top_p: 0.95,
       },
       safetySettings: [
         { category: "HATE_SPEECH", threshold: "BLOCK_NONE" },
