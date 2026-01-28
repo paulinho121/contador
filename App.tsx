@@ -75,7 +75,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [context, setContext] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<{ file: File; base64: string; preview: string }[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<{ file: File; base64: string; preview: string; textContent?: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -148,25 +148,46 @@ const App: React.FC = () => {
       return type.startsWith('image/') ||
         type === 'application/pdf' ||
         type === 'text/xml' ||
+        type === 'application/xml' ||
         extension === 'xml';
     });
 
     const newFiles = await Promise.all(validFiles.map(async (file: File) => {
-      return new Promise<{ file: File; base64: string; preview: string }>((resolve) => {
+      return new Promise<{ file: File; base64: string; preview: string; textContent?: string }>((resolve) => {
         const reader = new FileReader();
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        const isXml = file.type === 'text/xml' || file.type === 'application/xml' || extension === 'xml';
+
         reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          let preview = '';
-          if (file.type.startsWith('image/')) {
-            preview = reader.result as string;
-          } else if (file.type === 'application/pdf') {
-            preview = 'pdf-icon';
+          if (isXml) {
+            const content = reader.result as string;
+            const base64 = btoa(unescape(encodeURIComponent(content)));
+            resolve({
+              file,
+              base64,
+              preview: 'xml-icon',
+              textContent: content
+            });
           } else {
-            preview = 'xml-icon';
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            let preview = '';
+            if (file.type.startsWith('image/')) {
+              preview = result;
+            } else if (file.type === 'application/pdf') {
+              preview = 'pdf-icon';
+            } else {
+              preview = 'file-icon';
+            }
+            resolve({ file, base64, preview });
           }
-          resolve({ file, base64, preview });
         };
-        reader.readAsDataURL(file);
+
+        if (isXml) {
+          reader.readAsText(file);
+        } else {
+          reader.readAsDataURL(file);
+        }
       });
     }));
 
@@ -182,20 +203,36 @@ const App: React.FC = () => {
     e.preventDefault();
     if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
 
+    // Preparar o prompt final incluindo conteúdos de texto (XML)
+    let finalPrompt = input || (selectedFiles.length > 0 ? "Analise os arquivos enviados" : "");
+    const xmlContents = selectedFiles
+      .filter(f => f.textContent)
+      .map(f => `\n\nCONTÉUDO DO ARQUIVO ${f.file.name}:\n\`\`\`xml\n${f.textContent}\n\`\`\``)
+      .join("");
+
+    finalPrompt += xmlContents;
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
-      timestamp: new Date()
+      content: input || "Análise de arquivos",
+      timestamp: new Date(),
+      attachments: selectedFiles.map(f => ({
+        preview: f.preview,
+        fileName: f.file.name,
+        type: f.file.type || (f.file.name.endsWith('.xml') ? 'text/xml' : 'application/octet-stream')
+      }))
     };
 
     setMessages(prev => [...prev, userMessage]);
 
-    // Preparar anexos para a API
-    const attachments = selectedFiles.map(f => ({
-      mimeType: f.file.type || (f.file.name.endsWith('.xml') ? 'text/xml' : 'application/octet-stream'),
-      data: f.base64
-    }));
+    // Preparar anexos (apenas imagens e PDFs para inline_data)
+    const attachments = selectedFiles
+      .filter(f => !f.textContent) // XMLs já estão no prompt
+      .map(f => ({
+        mimeType: f.file.type || 'application/octet-stream',
+        data: f.base64
+      }));
 
     setInput('');
     setSelectedFiles([]);
@@ -211,7 +248,7 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, placeholderMsg]);
 
     try {
-      await geminiService.ask(input || "Analise os arquivos enviados", context, (fullText) => {
+      await geminiService.ask(finalPrompt, context, (fullText) => {
         setMessages(prev => prev.map(m =>
           m.id === assistantMsgId ? { ...m, content: fullText } : m
         ));
@@ -375,6 +412,26 @@ const App: React.FC = () => {
                   </div>
                   <div className="flex-1 prose prose-invert prose-sm md:prose-base max-w-none">
                     {renderContent(m.content, m.role)}
+
+                    {m.attachments && m.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {m.attachments.map((att, idx) => (
+                          <div key={idx} className="relative group/att w-24 h-24 md:w-32 md:h-32 rounded-lg overflow-hidden border border-white/10 bg-black/20 group">
+                            {att.type.startsWith('image/') ? (
+                              <img src={att.preview} alt={att.fileName} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center p-2 bg-slate-800/50">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400 mb-2">
+                                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span className="text-[10px] text-white/70 truncate w-full text-center px-1 font-bold uppercase">{att.fileName.split('.').pop()}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
