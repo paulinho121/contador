@@ -262,30 +262,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {[
                                     {
-                                        city: 'BRASIL (Federal)',
+                                        city: 'FEDERAL',
                                         title: 'Lei Comp. 214/2025 (Reforma)',
                                         content: 'Institui o IBS e CBS. O ISS municipal será extinto e substituído pelo IBS gradualmente entre 2026 e 2032. A partir de set/2025, os códigos de serviço devem ser unificados ao padrão nacional.'
                                     },
                                     {
+                                        city: 'SÃO PAULO (Estado)',
+                                        title: 'RICMS/SP (Dec. 45.490/2000)',
+                                        content: 'Alíquota interna padrão de 18%. Substituição Tributária (ST) aplicada a diversos setores (bebidas, autopeças, perfumaria). Isenção para hortifrutigranjeiros. Redução de base de cálculo para cesta básica (7%).'
+                                    },
+                                    {
+                                        city: 'RIO DE JANEIRO (Estado)',
+                                        title: 'RICMS/RJ (Dec. 27.427/2000)',
+                                        content: 'Alíquota padrão de 18% + 2% do FECP (Fundo de Combate à Pobreza), totalizando 20%. Regras específicas para o setor de petróleo e energia. Diferimento para importações pelo Porto do Rio.'
+                                    },
+                                    {
+                                        city: 'MINAS GERAIS (Estado)',
+                                        title: 'RICMS/MG (Dec. 48.589/2023)',
+                                        content: 'Novo regulamento simplificado. Alíquota padrão 18%. Regime Especial de Tributação (RET) para e-commerce e indústrias têxteis. Diferencial de Alíquota (DIFAL) rigoroso para compras de outros estados.'
+                                    },
+                                    {
                                         city: 'Barueri - SP',
-                                        title: 'ISS Barueri (Lei 118/2022 e Lei 34/1966)',
-                                        content: 'Regulamentado pela Lei Complementar nº 118/2022 e pelo Código Tributário Municipal (Lei nº 34/66). Alíquota geral: 5%. Alíquotas reduzidas (2%): Tecnologia da informação, manutenção e reparos, saúde e educação. O cálculo para autônomos utiliza a UFIB (Unidade Fiscal de Barueri). Vencimento: Dia 10 do mês subsequente.'
+                                        title: 'ISS Barueri (Lei 118/2022)',
+                                        content: 'Alíquota geral: 5%. Alíquotas reduzidas (2%): TI, saúde e educação. O cálculo para autônomos utiliza a UFIB. Vencimento: Dia 10 do mês subsequente.'
                                     },
                                     {
                                         city: 'São Paulo - SP',
                                         title: 'ISS São Paulo (Lei 13.701/2003)',
-                                        content: 'Regulado pela Lei nº 13.701/2003. Alíquotas variam de 2% a 5%. Serviços de informática, engenharia e planos de saúde costumam ter alíquota de 2%. Atenção: Retenção na fonte é obrigatória para tomadores se o prestador de outro município não tiver inscrição no CPOM.'
+                                        content: 'Alíquotas de 2% a 5%. TI e Planos de Saúde (2%). Retenção na fonte obrigatória se o prestador não tiver inscrição no CPOM.'
                                     },
                                     {
-                                        city: 'Campinas - SP',
-                                        title: 'ISS Campinas (Lei 12.392/2005)',
-                                        content: 'Alíquota padrão 5%. Incentivos fiscais para empresas no pólo tecnológico reduzem para 2%. NFS-e obrigatória para todos os prestadores.'
+                                        city: 'Curitiba - PR',
+                                        title: 'ISS Curitiba (LC 40/2001)',
+                                        content: 'Alíquota padrão 5%. Redução para 2% em serviços de inovação e tecnologia (Pinhão Hub). Vencimento dia 20.'
+                                    },
+                                    {
+                                        city: 'Belo Horizonte - MG',
+                                        title: 'ISS BH (Lei 8.725/2003)',
+                                        content: 'Alíquota de 2% a 5%. Forte fiscalização sobre serviços de construção civil e retenções de órgãos públicos.'
                                     }
                                 ].map((sugestion, idx) => (
                                     <div key={idx} className="p-6 bg-white/[0.03] border border-white/10 rounded-3xl hover:border-indigo-500/30 transition-all flex flex-col h-full">
                                         <div className="flex items-center gap-3 mb-4">
                                             <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center text-[10px] font-black text-indigo-400">
-                                                {sugestion.city.substring(0, 2)}
+                                                {sugestion.city.substring(0, 2).toUpperCase()}
                                             </div>
                                             <h4 className="text-sm font-bold text-white uppercase italic">{sugestion.city}</h4>
                                         </div>
@@ -293,7 +313,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                                         <p className="text-xs text-slate-400 mb-6 flex-1 line-clamp-3">{sugestion.content}</p>
                                         <button
                                             onClick={() => {
-                                                setNewTitle(sugestion.title);
+                                                setNewTitle(`${sugestion.city}: ${sugestion.title}`);
                                                 setNewContent(sugestion.content);
                                                 setActiveTab('rag');
                                             }}
