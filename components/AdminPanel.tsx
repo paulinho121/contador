@@ -15,7 +15,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
     const [users, setUsers] = useState<any[]>([]);
     const [knowledgeItems, setKnowledgeItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'users' | 'rag'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'rag' | 'leis'>('users');
 
     // RAG Form state
     const [newTitle, setNewTitle] = useState('');
@@ -123,6 +123,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                         >
                             Base RAG
                         </button>
+                        <button
+                            onClick={() => setActiveTab('leis')}
+                            className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'leis' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+                        >
+                            Leis Municipais
+                        </button>
                     </div>
 
                     <div className="flex gap-4 ml-auto">
@@ -174,8 +180,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                                 );
                             })}
                         </div>
-                    ) : (
+                    ) : activeTab === 'rag' ? (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-fade-in">
+                            {/* ... (conteúdo do RAG existente) ... */}
                             {/* Formulário de Adição */}
                             <div className="space-y-6">
                                 <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2rem]">
@@ -233,6 +240,83 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                                         <span className="text-[9px] text-slate-700 uppercase tracking-widest block mt-4">{new Date(item.timestamp).toLocaleDateString()}</span>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-8 animate-fade-in">
+                            <div className="p-8 bg-indigo-500/10 border border-indigo-500/20 rounded-[2.5rem] flex flex-col md:flex-row gap-8 items-center">
+                                <div className="flex-1">
+                                    <h3 className="text-xl font-bold text-white mb-2 italic">Inteligência Municipal</h3>
+                                    <p className="text-sm text-slate-400 leading-relaxed">
+                                        Selecione um município abaixo para alimentar o RAG com as leis específicas (ISS, Código Tributário, etc.).
+                                        Isso permite que o Dr. Contador responda com precisão sobre cálculos locais.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="px-6 py-3 bg-indigo-600 rounded-2xl text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-500/20">
+                                        Módulo Ativo
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[
+                                    {
+                                        city: 'BRASIL (Federal)',
+                                        title: 'Lei Comp. 214/2025 (Reforma)',
+                                        content: 'Institui o IBS e CBS. O ISS municipal será extinto e substituído pelo IBS gradualmente entre 2026 e 2032. A partir de set/2025, os códigos de serviço devem ser unificados ao padrão nacional.'
+                                    },
+                                    {
+                                        city: 'Barueri - SP',
+                                        title: 'ISS Barueri (Lei 118/2022 e Lei 34/1966)',
+                                        content: 'Regulamentado pela Lei Complementar nº 118/2022 e pelo Código Tributário Municipal (Lei nº 34/66). Alíquota geral: 5%. Alíquotas reduzidas (2%): Tecnologia da informação, manutenção e reparos, saúde e educação. O cálculo para autônomos utiliza a UFIB (Unidade Fiscal de Barueri). Vencimento: Dia 10 do mês subsequente.'
+                                    },
+                                    {
+                                        city: 'São Paulo - SP',
+                                        title: 'ISS São Paulo (Lei 13.701/2003)',
+                                        content: 'Regulado pela Lei nº 13.701/2003. Alíquotas variam de 2% a 5%. Serviços de informática, engenharia e planos de saúde costumam ter alíquota de 2%. Atenção: Retenção na fonte é obrigatória para tomadores se o prestador de outro município não tiver inscrição no CPOM.'
+                                    },
+                                    {
+                                        city: 'Campinas - SP',
+                                        title: 'ISS Campinas (Lei 12.392/2005)',
+                                        content: 'Alíquota padrão 5%. Incentivos fiscais para empresas no pólo tecnológico reduzem para 2%. NFS-e obrigatória para todos os prestadores.'
+                                    }
+                                ].map((sugestion, idx) => (
+                                    <div key={idx} className="p-6 bg-white/[0.03] border border-white/10 rounded-3xl hover:border-indigo-500/30 transition-all flex flex-col h-full">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center text-[10px] font-black text-indigo-400">
+                                                {sugestion.city.substring(0, 2)}
+                                            </div>
+                                            <h4 className="text-sm font-bold text-white uppercase italic">{sugestion.city}</h4>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">{sugestion.title}</p>
+                                        <p className="text-xs text-slate-400 mb-6 flex-1 line-clamp-3">{sugestion.content}</p>
+                                        <button
+                                            onClick={() => {
+                                                setNewTitle(sugestion.title);
+                                                setNewContent(sugestion.content);
+                                                setActiveTab('rag');
+                                            }}
+                                            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-white uppercase tracking-[0.2em] transition-all"
+                                        >
+                                            Carregar para RAG
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="p-8 border border-dashed border-white/10 rounded-[2.5rem] flex flex-col items-center justify-center text-center">
+                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                                </div>
+                                <h4 className="text-white font-bold mb-2">Adicionar Outro Município</h4>
+                                <p className="text-xs text-slate-500 mb-6 max-w-xs">Encontramos leis de mais de 5.000 cidades brasileiras. Pesquise e adicione manualmente na aba Base RAG.</p>
+                                <button
+                                    onClick={() => setActiveTab('rag')}
+                                    className="px-8 py-3 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
+                                >
+                                    Ir para Cadastro Manual
+                                </button>
                             </div>
                         </div>
                     )}
