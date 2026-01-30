@@ -147,6 +147,64 @@ export class GeminiService {
     }
   }
 
+  async processLaw(text: string): Promise<any[]> {
+    const prompt = `
+      Você é um especialista em direito tributário brasileiro, contabilidade e arquitetura de sistemas RAG.
+      Sua tarefa é organizar o texto legal abaixo para indexação em um sistema RAG.
+
+      REGRAS RÍGIDAS:
+      1. IDENTIFICAÇÃO: Identifique Esfera, Tipo, Número, Ano, Órgão e Status.
+      2. CHUNKING: Divida EXCLUSIVAMENTE por Artigos, Parágrafos ou Incisos. Nunca quebre no meio de um dispositivo.
+      3. CLASSIFICAÇÃO: Identifique Tributo, Tema Principal e Tipo de Impacto Contábil.
+      4. FORMATO: Retorne APENAS um array de objetos JSON no formato:
+      {
+        "esfera": "",
+        "estado": "",
+        "municipio": "",
+        "orgao_emissor": "",
+        "tipo_norma": "",
+        "numero_norma": "",
+        "ano": "",
+        "tributo": "",
+        "tema": "",
+        "impacto_contabil": "",
+        "artigo": "",
+        "status": "",
+        "texto": ""
+      }
+
+      TEXTO LEGAL:
+      ${text}
+
+      Retorne APENAS o array JSON, sem explicações.
+    `;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generation_config: {
+            temperature: 0,
+            response_mime_type: "application/json"
+          }
+        })
+      });
+
+      if (!response.ok) throw new Error("Falha ao processar lei com Gemini");
+
+      const data = await response.json();
+      const rawOutput = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+      return JSON.parse(rawOutput);
+    } catch (error) {
+      console.error("Erro no processamento da lei:", error);
+      throw error;
+    }
+  }
+
   private updateHistory(userText: string, assistantText: string) {
     this.history.push({ role: "user", parts: [{ text: userText }] });
     this.history.push({ role: "model", parts: [{ text: assistantText }] });

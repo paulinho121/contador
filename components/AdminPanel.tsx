@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { azureService } from '../services/azureService';
+import SmartLawIngestor from './SmartLawIngestor';
 
 interface AdminPanelProps {
     onClose: () => void;
@@ -15,7 +16,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
     const [users, setUsers] = useState<any[]>([]);
     const [knowledgeItems, setKnowledgeItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'users' | 'rag' | 'leis'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'rag' | 'leis' | 'discovery'>('users');
+    const [isSyncing, setIsSyncing] = useState(false);
 
     // RAG Form state
     const [newTitle, setNewTitle] = useState('');
@@ -30,7 +32,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
             setUsers(allUsers);
             setKnowledgeItems(knowledge);
 
-            // Re-update global context if needed
             if (knowledge.length > 0) {
                 const allContent = knowledge
                     .map(item => `### ${item.title || 'Informação'}\n${item.content}\n`)
@@ -82,14 +83,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
         if (!u.lastActive) return false;
         const lastActive = new Date(u.lastActive).getTime();
         const now = new Date().getTime();
-        return (now - lastActive) < 10 * 60 * 1000; // 10 minutos
+        return (now - lastActive) < 10 * 60 * 1000;
     });
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 bg-slate-950/80 backdrop-blur-md animate-fade-in">
             <div className="w-full max-w-6xl h-full max-h-[90vh] bg-slate-900 border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden relative">
 
-                {/* Header do Painel */}
+                {/* Header */}
                 <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-indigo-500/20 rounded-2xl flex items-center justify-center border border-indigo-500/30">
@@ -100,35 +101,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                             <p className="text-[10px] text-slate-500 uppercase tracking-[0.4em] font-bold">Controle Central Neural</p>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-slate-400 hover:text-white"
-                    >
+                    <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-slate-400 hover:text-white">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                     </button>
                 </div>
 
-                {/* Tabs e Stats */}
+                {/* Tabs */}
                 <div className="flex flex-col md:flex-row items-center gap-6 p-8 bg-white/[0.01]">
                     <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-white/5">
-                        <button
-                            onClick={() => setActiveTab('users')}
-                            className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
-                        >
-                            Usuários
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('rag')}
-                            className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'rag' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
-                        >
-                            Base RAG
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('leis')}
-                            className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'leis' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
-                        >
-                            Leis Municipais
-                        </button>
+                        <button onClick={() => setActiveTab('users')} className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}>Usuários</button>
+                        <button onClick={() => setActiveTab('rag')} className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'rag' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}>Base RAG</button>
+                        <button onClick={() => setActiveTab('leis')} className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'leis' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}>Processar Lei</button>
+                        <button onClick={() => setActiveTab('discovery')} className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'discovery' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}>Auto-Discovery</button>
                     </div>
 
                     <div className="flex gap-4 ml-auto">
@@ -143,7 +127,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                     </div>
                 </div>
 
-                {/* Conteúdo Central */}
+                {/* Content */}
                 <div className="flex-1 overflow-y-auto p-8 pt-0 scrollbar-hide">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-64">
@@ -182,8 +166,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                         </div>
                     ) : activeTab === 'rag' ? (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-fade-in">
-                            {/* ... (conteúdo do RAG existente) ... */}
-                            {/* Formulário de Adição */}
                             <div className="space-y-6">
                                 <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2rem]">
                                     <h3 className="text-white font-bold uppercase tracking-widest text-xs mb-6 flex items-center gap-2">
@@ -193,35 +175,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                                     <form onSubmit={handleAddKnowledge} className="space-y-4">
                                         <div>
                                             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest ml-4 mb-2 block">Título / Assunto</label>
-                                            <input
-                                                type="text"
-                                                value={newTitle}
-                                                onChange={(e) => setNewTitle(e.target.value)}
-                                                placeholder="Ex: Alíquota ISS 2024"
-                                                className="w-full bg-slate-950 border border-white/5 rounded-2xl py-4 px-6 text-white text-sm outline-none focus:border-indigo-500/50"
-                                            />
+                                            <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Ex: Alíquota ISS 2024" className="w-full bg-slate-950 border border-white/5 rounded-2xl py-4 px-6 text-white text-sm outline-none focus:border-indigo-500/50" />
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest ml-4 mb-2 block">Conteúdo Detalhado</label>
-                                            <textarea
-                                                value={newContent}
-                                                onChange={(e) => setNewContent(e.target.value)}
-                                                placeholder="Descreva aqui as regras ou informações..."
-                                                className="w-full bg-slate-950 border border-white/5 rounded-2xl py-4 px-6 text-white text-sm outline-none focus:border-indigo-500/50 min-h-[200px]"
-                                            />
+                                            <textarea value={newContent} onChange={(e) => setNewContent(e.target.value)} placeholder="Descreva aqui as regras ou informações..." className="w-full bg-slate-950 border border-white/5 rounded-2xl py-4 px-6 text-white text-sm outline-none focus:border-indigo-500/50 min-h-[200px]" />
                                         </div>
-                                        <button
-                                            type="submit"
-                                            disabled={isSaving}
-                                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50 uppercase tracking-widest text-xs"
-                                        >
+                                        <button type="submit" disabled={isSaving} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50 uppercase tracking-widest text-xs">
                                             {isSaving ? 'Gravando no Núcleo...' : 'Alimentar Inteligência'}
                                         </button>
                                     </form>
                                 </div>
                             </div>
 
-                            {/* Lista de Conhecimentos */}
                             <div className="space-y-4">
                                 <h3 className="text-white font-bold uppercase tracking-widest text-xs flex items-center gap-2 mb-4">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" /><path d="M8 7h6" /><path d="M8 11h8" /></svg>
@@ -229,10 +195,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                                 </h3>
                                 {knowledgeItems.map((item) => (
                                     <div key={item.id} className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl group relative">
-                                        <button
-                                            onClick={() => handleDeleteKnowledge(item.id)}
-                                            className="absolute top-4 right-4 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
+                                        <button onClick={() => handleDeleteKnowledge(item.id)} className="absolute top-4 right-4 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                                         </button>
                                         <h4 className="text-sm font-bold text-white mb-2">{item.title}</h4>
@@ -242,104 +205,73 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                                 ))}
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'leis' ? (
                         <div className="space-y-8 animate-fade-in">
-                            <div className="p-8 bg-indigo-500/10 border border-indigo-500/20 rounded-[2.5rem] flex flex-col md:flex-row gap-8 items-center">
-                                <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-white mb-2 italic">Inteligência Municipal</h3>
-                                    <p className="text-sm text-slate-400 leading-relaxed">
-                                        Selecione um município abaixo para alimentar o RAG com as leis específicas (ISS, Código Tributário, etc.).
-                                        Isso permite que o Dr. Contador responda com precisão sobre cálculos locais.
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <div className="px-6 py-3 bg-indigo-600 rounded-2xl text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-500/20">
-                                        Módulo Ativo
-                                    </div>
-                                </div>
+                            <div className="mb-10">
+                                <SmartLawIngestor />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {[
-                                    {
-                                        city: 'FEDERAL',
-                                        title: 'Lei Comp. 214/2025 (Reforma)',
-                                        content: 'Institui o IBS e CBS. O ISS municipal será extinto e substituído pelo IBS gradualmente entre 2026 e 2032. A partir de set/2025, os códigos de serviço devem ser unificados ao padrão nacional.'
-                                    },
-                                    {
-                                        city: 'SÃO PAULO (Estado)',
-                                        title: 'RICMS/SP (Dec. 45.490/2000)',
-                                        content: 'Alíquota interna padrão de 18%. Substituição Tributária (ST) aplicada a diversos setores (bebidas, autopeças, perfumaria). Isenção para hortifrutigranjeiros. Redução de base de cálculo para cesta básica (7%).'
-                                    },
-                                    {
-                                        city: 'RIO DE JANEIRO (Estado)',
-                                        title: 'RICMS/RJ (Dec. 27.427/2000)',
-                                        content: 'Alíquota padrão de 18% + 2% do FECP (Fundo de Combate à Pobreza), totalizando 20%. Regras específicas para o setor de petróleo e energia. Diferimento para importações pelo Porto do Rio.'
-                                    },
-                                    {
-                                        city: 'MINAS GERAIS (Estado)',
-                                        title: 'RICMS/MG (Dec. 48.589/2023)',
-                                        content: 'Novo regulamento simplificado. Alíquota padrão 18%. Regime Especial de Tributação (RET) para e-commerce e indústrias têxteis. Diferencial de Alíquota (DIFAL) rigoroso para compras de outros estados.'
-                                    },
-                                    {
-                                        city: 'Barueri - SP',
-                                        title: 'ISS Barueri (Lei 118/2022)',
-                                        content: 'Alíquota geral: 5%. Alíquotas reduzidas (2%): TI, saúde e educação. O cálculo para autônomos utiliza a UFIB. Vencimento: Dia 10 do mês subsequente.'
-                                    },
-                                    {
-                                        city: 'São Paulo - SP',
-                                        title: 'ISS São Paulo (Lei 13.701/2003)',
-                                        content: 'Alíquotas de 2% a 5%. TI e Planos de Saúde (2%). Retenção na fonte obrigatória se o prestador não tiver inscrição no CPOM.'
-                                    },
-                                    {
-                                        city: 'Curitiba - PR',
-                                        title: 'ISS Curitiba (LC 40/2001)',
-                                        content: 'Alíquota padrão 5%. Redução para 2% em serviços de inovação e tecnologia (Pinhão Hub). Vencimento dia 20.'
-                                    },
-                                    {
-                                        city: 'Belo Horizonte - MG',
-                                        title: 'ISS BH (Lei 8.725/2003)',
-                                        content: 'Alíquota de 2% a 5%. Forte fiscalização sobre serviços de construção civil e retenções de órgãos públicos.'
-                                    }
-                                ].map((sugestion, idx) => (
-                                    <div key={idx} className="p-6 bg-white/[0.03] border border-white/10 rounded-3xl hover:border-indigo-500/30 transition-all flex flex-col h-full">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center text-[10px] font-black text-indigo-400">
-                                                {sugestion.city.substring(0, 2).toUpperCase()}
+                            <div className="pt-8 border-t border-white/5">
+                                <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-6 px-4">Sugestões Rápidas de Legislação</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {[
+                                        { city: 'FEDERAL', title: 'Lei Comp. 214/2025 (Reforma)', content: 'Institui o IBS e CBS. O ISS municipal será extinto e substituído pelo IBS gradualmente entre 2026 e 2032. A partir de set/2025, os códigos de serviço devem ser unificados ao padrão nacional.' },
+                                        { city: 'SÃO PAULO (Estado)', title: 'RICMS/SP (Dec. 45.490/2000)', content: 'Alíquota interna padrão de 18%. Substituição Tributária (ST) aplicada a diversos setores (bebidas, autopeças, perfumaria). Isenção para hortifrutigranjeiros. Redução de base de cálculo para cesta básica (7%).' },
+                                        { city: 'Barueri - SP', title: 'ISS Barueri (Lei 118/2022)', content: 'Alíquota geral: 5%. Alíquotas reduzidas (2%): TI, saúde e educação. O cálculo para autônomos utiliza a UFIB. Vencimento: Dia 10 do mês subsequente.' }
+                                    ].map((sugestion, idx) => (
+                                        <div key={idx} className="p-6 bg-white/[0.03] border border-white/10 rounded-3xl hover:border-indigo-500/30 transition-all flex flex-col h-full">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center text-[10px] font-black text-indigo-400">
+                                                    {sugestion.city.substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <h4 className="text-sm font-bold text-white uppercase italic">{sugestion.city}</h4>
                                             </div>
-                                            <h4 className="text-sm font-bold text-white uppercase italic">{sugestion.city}</h4>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">{sugestion.title}</p>
+                                            <p className="text-xs text-slate-400 mb-6 flex-1 line-clamp-2">{sugestion.content}</p>
+                                            <button
+                                                onClick={() => { setNewTitle(`${sugestion.city}: ${sugestion.title}`); setNewContent(sugestion.content); setActiveTab('rag'); }}
+                                                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-white uppercase tracking-[0.2em] transition-all"
+                                            >
+                                                Carregar para RAG
+                                            </button>
                                         </div>
-                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">{sugestion.title}</p>
-                                        <p className="text-xs text-slate-400 mb-6 flex-1 line-clamp-3">{sugestion.content}</p>
-                                        <button
-                                            onClick={() => {
-                                                setNewTitle(`${sugestion.city}: ${sugestion.title}`);
-                                                setNewContent(sugestion.content);
-                                                setActiveTab('rag');
-                                            }}
-                                            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-white uppercase tracking-[0.2em] transition-all"
-                                        >
-                                            Carregar para RAG
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="p-8 border border-dashed border-white/10 rounded-[2.5rem] flex flex-col items-center justify-center text-center">
-                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                                    ))}
                                 </div>
-                                <h4 className="text-white font-bold mb-2">Adicionar Outro Município</h4>
-                                <p className="text-xs text-slate-500 mb-6 max-w-xs">Encontramos leis de mais de 5.000 cidades brasileiras. Pesquise e adicione manualmente na aba Base RAG.</p>
-                                <button
-                                    onClick={() => setActiveTab('rag')}
-                                    className="px-8 py-3 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
-                                >
-                                    Ir para Cadastro Manual
-                                </button>
                             </div>
                         </div>
-                    )}
+                    ) : activeTab === 'discovery' ? (
+                        <div className="space-y-8 animate-fade-in">
+                            <div className="p-10 bg-indigo-600/10 border border-indigo-500/20 rounded-[3rem] text-center max-w-3xl mx-auto">
+                                <div className="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-indigo-500/30">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><path d="M12 2v4" /><path d="m16.2 7.8 2.9-2.9" /><path d="M21 12h-4" /><path d="m19.1 16.2-2.9-2.9" /><path d="M12 21v-4" /><path d="m7.8 16.2-2.9 2.9" /><path d="M3 12h4" /><path d="m4.9 7.8 2.9-2.9" /></svg>
+                                </div>
+                                <h3 className="text-2xl font-black text-white mb-4 italic uppercase tracking-tighter">Motor de Automação Dr. Contador</h3>
+                                <p className="text-slate-400 mb-10 leading-relaxed">
+                                    Nossa IA realiza varreduras diárias em todos os diários oficiais municipais do Brasil para garantir que
+                                    sua base de conhecimento esteja sempre atualizada com as últimas mudanças tributárias.
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <button
+                                        onClick={() => alert("Sincronização global automática ativada.")}
+                                        className="p-8 bg-slate-950 border border-white/5 rounded-3xl hover:border-indigo-500/50 transition-all text-left"
+                                    >
+                                        <h4 className="text-white font-bold mb-2 flex items-center gap-2">
+                                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                            Sync Automático
+                                        </h4>
+                                        <p className="text-[10px] text-slate-500 leading-relaxed">Mantém as leis de todos os municípios sincronizadas em tempo real.</p>
+                                    </button>
+                                    <button
+                                        onClick={() => alert("Módulo de Alerta via Telegram em desenvolvimento.")}
+                                        className="p-8 bg-slate-950 border border-white/5 rounded-3xl hover:border-indigo-500/50 transition-all text-left opacity-60"
+                                    >
+                                        <h4 className="text-white font-bold mb-2">Alertas de Mudança</h4>
+                                        <p className="text-[10px] text-slate-500 leading-relaxed">Notifica seu time no WhatsApp/Telegram sobre novas leis publicadas.</p>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>

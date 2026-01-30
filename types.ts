@@ -15,3 +15,19 @@ export interface KnowledgeSource {
   name: string;
   content: string;
 }
+
+export interface LawChunk {
+  esfera: string;
+  estado: string;
+  municipio: string;
+  orgao_emissor: string;
+  tipo_norma: string;
+  numero_norma: string;
+  ano: string;
+  tributo: string;
+  tema: string;
+  impacto_contabil: string;
+  artigo: string;
+  status: string;
+  texto: string;
+}
