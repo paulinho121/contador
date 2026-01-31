@@ -11,7 +11,7 @@ export class LawCrawlerService {
     /**
      * Captura o conteúdo de uma URL (via proxy de leitura) e processa em chunks
      */
-    async ingestFromUrl(url: string, context: { esfera: string, estado?: string, municipio?: string }) {
+    async ingestFromUrl(url: string, context: { esfera: string, estado?: string, municipio?: string, ingestao_automatica?: boolean }) {
         console.log(`📡 Iniciando captura legislativa: ${url}`);
 
         try {

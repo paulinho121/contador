@@ -7,6 +7,7 @@ import AdminPanel from './components/AdminPanel';
 import { azureService } from './services/azureService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { selfLearningService } from './services/selfLearningService';
 
 const WELCOME_GUIDE = `
 # Como obter o melhor Parecer Premium? 🎓
@@ -288,10 +289,21 @@ const App: React.FC = () => {
         ));
       }, attachments, textParts);
 
-      // Se por algum motivo o stream terminou mas o conteúdo está vazio
-      if (!response) {
-        throw new Error("A IA não retornou nenhum parecer para estes arquivos.");
-      }
+      // Gatilho de Auto-Aprendizagem (Self-Learning)
+      // Se a resposta foi genérica, o serviço buscará a lei na web e alimentará o RAG em background.
+      selfLearningService.learnFromResponse(input || "Consulta", response).then(didLearn => {
+        if (didLearn) {
+          console.log("🌟 [RAG] O Dr. Contador acabou de aprender uma nova legislação automaticamente!");
+          // Recarregar o contexto para a próxima pergunta
+          azureService.getKnowledge().then(items => {
+            const allContent = items
+              .map(item => `### ${item.title || 'Informação'}\n${item.content}\n`)
+              .join('\n---\n\n');
+            setContext(allContent);
+          });
+        }
+      });
+
     } catch (error: any) {
       console.error(error);
       setMessages(prev => prev.map(m =>
