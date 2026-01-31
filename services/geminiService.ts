@@ -49,12 +49,27 @@ export class GeminiService {
       }
     }
 
-    // Se o prompt pedir busca na web ou parecer algo que o RAG local não cobriria (ex: leis de hoje)
-    if (prompt.toLowerCase().includes("pesquise") || prompt.toLowerCase().includes("internet") || prompt.toLowerCase().includes("web")) {
-      console.log("🌐 Realizando busca na web via Tavily...");
+    // LISTA DE TEMAS QUE EXIGEM BUSCA WEB (TRIBUTOS ESTADUAIS/MUNICIPAIS)
+    const hotTopics = [
+      "ipva", "iptu", "itcmd", "itbi", "alíquota", "tabela", "vencimento",
+      "prazo", "reforma tributária", "uau", "ufesp", "ufir", "selic"
+    ];
+
+    // LISTA DE ESTADOS E CAPITAIS PARA REFORÇAR BUSCA LOCALIZADA
+    const locations = ["ceara", "ceará", "fortaleza", "são paulo", "sp", "rio", "rj", "minas", "mg", "bahia", "paraná", "pr"];
+
+    const promptLower = prompt.toLowerCase();
+    const needsWeb = hotTopics.some(t => promptLower.includes(t)) ||
+      promptLower.includes("pesquise") ||
+      promptLower.includes("internet") ||
+      promptLower.includes("web") ||
+      (promptLower.includes("valor") && locations.some(l => promptLower.includes(l)));
+
+    if (needsWeb) {
+      console.log("🌐 Gatilho de busca web acionado para: " + prompt);
       const webResults = await externalApiService.searchWeb(prompt);
       if (webResults) {
-        augmentedContext += `\n\n[RESULTADOS DA BUSCA WEB]:\n${webResults}`;
+        augmentedContext += `\n\n[RESULTADOS DA BUSCA WEB EM TEMPO REAL]:\n${webResults}`;
       }
     }
 
