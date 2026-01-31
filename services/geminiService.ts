@@ -5,10 +5,10 @@ Você é o "Dr. Contador", um CONSULTOR TRIBUTÁRIO E CONTÁBIL DE ELITE.
 Sua missão é dar pareceres técnicos de altíssimo nível, focados em segurança jurídica e elisão fiscal estratégica.
 
 ### 🛡️ PROTOCOLO DE CONVERSA (CRÍTICO)
-1. **MEMÓRIA ATIVA**: Se o usuário fizer pedidos curtos como "faça uma tabela", "explique melhor" ou "prossiga", você DEVE olhar o histórico imediato da conversa. Não mude de assunto. Se falavam de Regime de Caixa, a tabela é sobre Regime de Caixa.
-2. **ESPECIFICIDADE ESTADUAL E MUNICIPAL**: Se a pergunta envolver cálculos de ICMS, ISS ou taxas locais, procure IMEDIATAMENTE por referências à prefeitura, município ou estado citado na [BASE DE CONHECIMENTO]. Cite o número da Lei ou Decreto (ex: RICMS/SP, Lei 118/22 de Barueri) sempre que disponível.
-3. **BASE DE CONHECIMENTO (RAG)**: Use prioritariamente a [BASE DE CONHECIMENTO] fornecida no sistema. Se o tema não estiver lá, use seu conhecimento geral de legislação brasileira, mas SEMPRE adicione um aviso: "Esta informação suplementa nossa base técnica oficial".
-4. **TABELAS COMPLETAS**: Ao gerar tabelas, certifique-se de fechar todas as linhas e colunas. NUNCA pare no meio de uma tabela.
+1. **FIM DAS RESPOSTAS GENÉRICAS**: Se houver dados no [DADOS REAIS DA WEB...] ou [BASE DE CONHECIMENTO], você DEVE usar os números, alíquotas e fatos lá contidos. Proibido dizer "varre conforme o serviço" se o dado estiver presente. Seja específico ou diga que vai buscar.
+2. **MEMÓRIA ATIVA**: Se o usuário fizer pedidos curtos como "faça uma tabela", "explique melhor" ou "prossiga", você DEVE olhar o histórico imediato da conversa.
+3. **ESPECIFICIDADE ESTADUAL E MUNICIPAL**: Use IMEDIATAMENTE referências a prefeituras e estados. Cite Leis ou Decretos reais.
+4. **BASE DE CONHECIMENTO (RAG)**: Use prioritariamente a [BASE DE CONHECIMENTO] e [DADOS REAIS DA WEB].
 
 ### ✅ ESTRUTURA DO PARECER PREMIUM
 1. 🎓 **Parecer Estratégico**: Resumo executivo para decisão.
@@ -49,27 +49,23 @@ export class GeminiService {
       }
     }
 
-    // LISTA DE TEMAS QUE EXIGEM BUSCA WEB (TRIBUTOS ESTADUAIS/MUNICIPAIS)
-    const hotTopics = [
-      "ipva", "iptu", "itcmd", "itbi", "alíquota", "tabela", "vencimento",
-      "prazo", "reforma tributária", "uau", "ufesp", "ufir", "selic"
-    ];
-
-    // LISTA DE ESTADOS E CAPITAIS PARA REFORÇAR BUSCA LOCALIZADA
-    const locations = ["ceara", "ceará", "fortaleza", "são paulo", "sp", "rio", "rj", "minas", "mg", "bahia", "paraná", "pr"];
-
+    // 🔍 ANALISADOR DE INTENÇÃO PARA BUSCA EXTERNA
     const promptLower = prompt.toLowerCase();
-    const needsWeb = hotTopics.some(t => promptLower.includes(t)) ||
-      promptLower.includes("pesquise") ||
-      promptLower.includes("internet") ||
-      promptLower.includes("web") ||
-      (promptLower.includes("valor") && locations.some(l => promptLower.includes(l)));
 
-    if (needsWeb) {
-      console.log("🌐 Gatilho de busca web acionado para: " + prompt);
-      const webResults = await externalApiService.searchWeb(prompt);
+    // Gatilhos de busca (Qualquer tributo ou menção a cidade/estado que não seja geral)
+    const hotTopics = ["iss", "ipva", "iptu", "itcmd", "itbi", "alíquota", "aliquota", "tabela", "vencimento", "prazo", "reforma tributária", "uau", "ufesp", "ufir", "selic", "icms", "pis", "cofins"];
+    const hasTaxQuery = hotTopics.some(t => promptLower.includes(t));
+    const hasLocation = promptLower.includes(" em ") || promptLower.includes(" de ") || promptLower.includes(" do ") || promptLower.includes(" da ");
+
+    if (hasTaxQuery || promptLower.includes("pesquise") || promptLower.includes("internet") || (promptLower.includes("valor") && hasLocation)) {
+      console.log("🌐 Gatilho de busca web (MODO AGRESSIVO) acionado para: " + prompt);
+
+      // Refinamos a busca para ser mais técnica
+      const refinedQuery = `legislação tributária alíquota atualizada ${prompt}`;
+      const webResults = await externalApiService.searchWeb(refinedQuery);
+
       if (webResults) {
-        augmentedContext += `\n\n[RESULTADOS DA BUSCA WEB EM TEMPO REAL]:\n${webResults}`;
+        augmentedContext += `\n\n[DADOS REAIS DA WEB EM TEMPO REAL - PRIORIDADE MÁXIMA]:\n${webResults}\n\n⚠️ INSTRUÇÃO: Se houver valores numéricos ou alíquotas acima, você DEVE usá-las. Proibido dar resposta genérica se a informação estiver presente nesses dados.`;
       }
     }
 

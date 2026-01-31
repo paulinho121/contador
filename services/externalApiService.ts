@@ -81,10 +81,16 @@ export class ExternalApiService {
             if (!response.ok) return "";
             const data = await response.json();
 
-            // Retorna um resumo dos resultados formatado para o RAG
-            return data.results.map((r: any) =>
+            let context = "";
+            if (data.answer) {
+                context += `RESUMO DIRETO: ${data.answer}\n\n`;
+            }
+
+            context += data.results.map((r: any) =>
                 `FONTE: ${r.title}\nURL: ${r.url}\nCONTEÚDO: ${r.content}\n`
             ).join("\n---\n");
+
+            return context;
         } catch (error) {
             console.error("Erro na busca Tavily:", error);
             return "";
