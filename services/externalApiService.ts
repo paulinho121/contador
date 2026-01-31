@@ -75,8 +75,8 @@ export class ExternalApiService {
                     include_answer: true,
                     include_raw_content: false,
                     max_results: 5,
-                    // Focar em domínios governamentais e contábeis
-                    include_domains: ["gov.br", "fazenda.gov.br", "contabeis.com.br", "receita.fazenda.gov.br"]
+                    // Removido filtro estrito de domínios para permitir sites de prefeituras e tribunais
+                    include_domains: []
                 })
             });
 
