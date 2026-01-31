@@ -73,6 +73,22 @@ export class GeminiService {
       }
     }
 
+    // 🧠 COMANDO DE APRENDIZADO ATIVO ("Aprenda sobre...")
+    const learnMatch = prompt.toLowerCase().match(/aprenda sobre (?:as leis tributarias de |as leis de |a legislação de )?(.+)/);
+    if (learnMatch) {
+      const target = learnMatch[1].trim();
+      console.log(`🧠 [ACTIVE-LEARNING] Comando recebido para aprender sobre: ${target}`);
+
+      // Iniciamos o aprendizado em background
+      const { selfLearningService } = await import("./selfLearningService");
+      // Forçamos a busca para o alvo específico
+      selfLearningService.learnFromResponse(`Preciso aprender sobre as leis de ${target}`, "Base local não possui informações específicas sobre " + target);
+
+      return `Com prazer! Estou iniciando agora uma varredura profunda na internet para aprender tudo sobre a legislação tributária de **${target}**. 
+
+Isso pode levar alguns segundos enquanto eu fragmento e indexo os artigos na minha base. Enquanto eu processo, **o que exatamente você gostaria de saber sobre as regras contábeis ou impostos de ${target}?**`;
+    }
+
     const isStreaming = !!onStream;
     const method = isStreaming ? "streamGenerateContent" : "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
