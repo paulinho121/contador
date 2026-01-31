@@ -74,7 +74,7 @@ export class GeminiService {
     }
 
     // 🧠 COMANDO DE APRENDIZADO ATIVO ("Aprenda sobre...")
-    const learnMatch = prompt.toLowerCase().match(/aprenda sobre (?:as leis tributarias de |as leis de |a legislação de )?(.+)/);
+    const learnMatch = prompt.toLowerCase().match(/aprenda sobre (?:as leis tributárias de |as leis tributarias de |as leis de |a legislação de )?(.+)/);
     if (learnMatch) {
       const target = learnMatch[1].trim();
       console.log(`🧠 [ACTIVE-LEARNING] Comando recebido para aprender sobre: ${target}`);

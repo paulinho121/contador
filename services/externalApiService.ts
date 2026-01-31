@@ -74,9 +74,7 @@ export class ExternalApiService {
                     search_depth: "advanced",
                     include_answer: true,
                     include_raw_content: false,
-                    max_results: 5,
-                    // Removido filtro estrito de domínios para permitir sites de prefeituras e tribunais
-                    include_domains: []
+                    max_results: 5
                 })
             });
 

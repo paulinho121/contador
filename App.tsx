@@ -289,6 +289,11 @@ const App: React.FC = () => {
         ));
       }, attachments, textParts);
 
+      // Atualização final (Crítico para comandos que não usam stream como 'aprenda sobre')
+      setMessages(prev => prev.map(m =>
+        m.id === assistantMsgId ? { ...m, content: response } : m
+      ));
+
       // Gatilho de Auto-Aprendizagem (Self-Learning)
       // Se a resposta foi genérica, o serviço buscará a lei na web e alimentará o RAG em background.
       selfLearningService.learnFromResponse(input || "Consulta", response).then(didLearn => {
