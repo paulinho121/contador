@@ -34,14 +34,19 @@ export class GeminiService {
     context: string,
     onStream?: (text: string) => void,
     attachments: { mimeType: string, data: string }[] = [],
-    textParts: string[] = []
+    textParts: string[] = [],
+    skipWebSearch: boolean = false
   ): Promise<string> {
     let augmentedContext = context;
 
     // 🔍 ANALISADOR DE INTENÇÃO PARA BUSCA EXTERNA
-    // Se o usuário mencionar CNPJ ou pedir algo "atual", buscamos fora.
+    const promptLower = prompt.toLowerCase();
+
+    // Evita busca web para prompts gigantes (evita erro 400 no Tavily)
+    const isVeryLongPrompt = prompt.length > 500;
+
     const cnpjMatch = prompt.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/);
-    if (cnpjMatch) {
+    if (cnpjMatch && !isVeryLongPrompt) {
       console.log("🔍 Detectado CNPJ no prompt. Consultando BrasilAPI...");
       const cnpjInfo = await externalApiService.queryCNPJ(cnpjMatch[0]);
       if (cnpjInfo) {
@@ -49,19 +54,16 @@ export class GeminiService {
       }
     }
 
-    // 🔍 ANALISADOR DE INTENÇÃO PARA BUSCA EXTERNA
-    const promptLower = prompt.toLowerCase();
-
     // Gatilhos de busca (Qualquer tributo ou menção a cidade/estado que não seja geral)
     const hotTopics = ["iss", "ipva", "iptu", "itcmd", "itbi", "alíquota", "aliquota", "tabela", "vencimento", "prazo", "reforma tributária", "uau", "ufesp", "ufir", "selic", "icms", "pis", "cofins"];
     const hasTaxQuery = hotTopics.some(t => promptLower.includes(t));
     const hasLocation = promptLower.includes(" em ") || promptLower.includes(" de ") || promptLower.includes(" do ") || promptLower.includes(" da ");
 
-    if (hasTaxQuery || promptLower.includes("pesquise") || promptLower.includes("internet") || (promptLower.includes("valor") && hasLocation)) {
+    if (!skipWebSearch && !isVeryLongPrompt && (hasTaxQuery || promptLower.includes("pesquise") || promptLower.includes("internet") || (promptLower.includes("valor") && hasLocation))) {
       console.log("🌐 Gatilho de busca web (MODO AGRESSIVO) acionado para: " + prompt);
 
-      // Refinamos a busca para ser mais técnica
-      const refinedQuery = `legislação tributária alíquota atualizada ${prompt}`;
+      // Refinamos a busca apenas com as palavras chave (primeiros 150 caracteres + contexto)
+      const refinedQuery = `legislação tributária alíquota ${prompt.substring(0, 150)}`;
       const webResults = await externalApiService.searchWeb(refinedQuery);
 
       if (webResults) {
@@ -80,9 +82,12 @@ export class GeminiService {
       // Forçamos a busca para o alvo específico
       selfLearningService.learnFromResponse(`Preciso aprender sobre as leis de ${target}`, "Base local não possui informações específicas sobre " + target);
 
-      return `Com prazer! Estou iniciando agora uma varredura profunda na internet para aprender tudo sobre a legislação tributária de **${target}**. 
+      const response = `Com prazer! Estou iniciando agora uma varredura profunda na internet para aprender tudo sobre a legislação tributária de **${target}**. 
 
 Isso pode levar alguns segundos enquanto eu fragmento e indexo os artigos na minha base. Enquanto eu processo, **o que exatamente você gostaria de saber sobre as regras contábeis ou impostos de ${target}?**`;
+
+      if (onStream) onStream(response);
+      return response;
     }
 
     const isStreaming = !!onStream;
