@@ -35,6 +35,7 @@ jobs:
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_AZURE_COSMOS_CONNECTION_STRING: ${{ secrets.VITE_AZURE_COSMOS_CONNECTION_STRING }}
+          VITE_TAVILY_API_KEY: ${{ secrets.VITE_TAVILY_API_KEY }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
