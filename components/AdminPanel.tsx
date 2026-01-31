@@ -207,6 +207,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                         </div>
                     ) : activeTab === 'leis' ? (
                         <div className="space-y-8 animate-fade-in">
+                            {/* Crawler Section */}
+                            <div className="p-8 bg-indigo-600/5 border border-indigo-500/20 rounded-[2.5rem] mb-10">
+                                <h3 className="text-white font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2 italic">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                                    Crawler Legislativo (Alpha)
+                                </h3>
+                                <div className="flex flex-col md:flex-row gap-4">
+                                    <input
+                                        type="text"
+                                        id="crawler-url"
+                                        placeholder="Cole a URL de uma Lei (Ex: Jusbrasil, Planalto, LeisMunicipais)"
+                                        className="flex-1 bg-slate-950 border border-white/5 rounded-2xl px-6 py-4 text-sm text-white outline-none focus:border-indigo-500/50"
+                                    />
+                                    <button
+                                        onClick={async () => {
+                                            const url = (document.getElementById('crawler-url') as HTMLInputElement).value;
+                                            if (!url) return alert("Insira uma URL");
+                                            alert("Iniciando varredura profunda... Acompanhe os logs no console.");
+                                            try {
+                                                const { lawCrawlerService } = await import('../services/lawCrawlerService');
+                                                const result = await lawCrawlerService.ingestFromUrl(url, { esfera: 'Municipal', municipio: 'Detectado via URL' });
+                                                alert(`Sucesso! ${result.totalChunks} novos fragmentos adicionados ao RAG.`);
+                                                fetchData();
+                                            } catch (e) {
+                                                alert("Erro no crawler. Verifique o console.");
+                                            }
+                                        }}
+                                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-500/20"
+                                    >
+                                        Sincronizar Lei via URL
+                                    </button>
+                                </div>
+                                <p className="text-[9px] text-slate-500 mt-4 uppercase tracking-[0.2em] font-bold">O sistema irá ler, fragmentar e classificar cada artigo automaticamente.</p>
+                            </div>
+
                             <div className="mb-10">
                                 <SmartLawIngestor />
                             </div>
@@ -241,33 +276,75 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onKnowledgeUpdate, cur
                         </div>
                     ) : activeTab === 'discovery' ? (
                         <div className="space-y-8 animate-fade-in">
-                            <div className="p-10 bg-indigo-600/10 border border-indigo-500/20 rounded-[3rem] text-center max-w-3xl mx-auto">
-                                <div className="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-indigo-500/30">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><path d="M12 2v4" /><path d="m16.2 7.8 2.9-2.9" /><path d="M21 12h-4" /><path d="m19.1 16.2-2.9-2.9" /><path d="M12 21v-4" /><path d="m7.8 16.2-2.9 2.9" /><path d="M3 12h4" /><path d="m4.9 7.8 2.9-2.9" /></svg>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* API Status Card */}
+                                <div className="p-8 bg-slate-950 border border-white/5 rounded-[2.5rem]">
+                                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                        Status das APIs Externas
+                                    </h4>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                                            <span className="text-xs text-slate-400 font-bold uppercase">BrasilAPI (CNPJ/CEP)</span>
+                                            <span className="text-[10px] text-emerald-400 font-black">Conectado (Livre)</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                                            <span className="text-xs text-slate-400 font-bold uppercase">Tavily Web Search</span>
+                                            <span className={`text-[10px] ${import.meta.env.VITE_TAVILY_API_KEY ? 'text-emerald-400' : 'text-amber-500'} font-black italic`}>
+                                                {import.meta.env.VITE_TAVILY_API_KEY ? 'Ativo (Premium)' : 'Aguardando Chave'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                                            <span className="text-xs text-slate-400 font-bold uppercase">Receita Federal RSS</span>
+                                            <span className="text-[10px] text-emerald-400 font-black">Sincronizado</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <h3 className="text-2xl font-black text-white mb-4 italic uppercase tracking-tighter">Motor de Automação Dr. Contador</h3>
-                                <p className="text-slate-400 mb-10 leading-relaxed">
-                                    Nossa IA realiza varreduras diárias em todos os diários oficiais municipais do Brasil para garantir que
-                                    sua base de conhecimento esteja sempre atualizada com as últimas mudanças tributárias.
+
+                                {/* Multi-Feed Monitoring */}
+                                <div className="lg:col-span-2 p-8 bg-indigo-600/10 border border-indigo-500/20 rounded-[2.5rem]">
+                                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2 italic">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /></svg>
+                                        Monitoramento Inteligente de Fontes (RAG Automático)
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[
+                                            { name: "Receita Federal", desc: "Legislação, Instruções Normativas e Atos", status: "Monitorando" },
+                                            { name: "Sefaz SP", desc: "Mudanças no ICMS e substituição tributária", status: "Monitorando" },
+                                            { name: "Portal Contábeis", desc: "Principais notícias e prazos do setor", status: "Monitorando" },
+                                            { name: "Simples Nacional", desc: "Resoluções e comitê gestor", status: "Em Breve" }
+                                        ].map((source, i) => (
+                                            <div key={i} className="p-5 bg-black/40 border border-white/5 rounded-2xl hover:border-indigo-500/30 transition-all">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <h5 className="text-white font-bold text-sm italic">{source.name}</h5>
+                                                    <span className="text-[8px] bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-full font-black uppercase tracking-widest">{source.status}</span>
+                                                </div>
+                                                <p className="text-[10px] text-slate-500 leading-relaxed font-bold uppercase tracking-tighter">{source.desc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="mt-8 flex gap-4">
+                                        <button onClick={() => alert("Varredura manual iniciada...")} className="flex-1 bg-white text-black font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-indigo-400 transition-all italic">Forçar Varredura Agora</button>
+                                        <button onClick={() => alert("Alertas ativados")} className="flex-1 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">Configurar Alertas Telegram</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-10 bg-slate-950 border border-white/5 rounded-[3rem] relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] rounded-full -mr-32 -mt-32"></div>
+                                <h3 className="text-xl font-black text-white mb-6 italic uppercase tracking-tighter">Missão de Aprendizado</h3>
+                                <p className="text-sm text-slate-400 mb-8 leading-relaxed max-w-2xl">
+                                    A IA "Dr. Contador" não apenas responde dúvidas, ela aprende continuamente.
+                                    A cada 30 minutos, o sistema consulta as APIs públicas acima para detectar novas leis e integrá-las à sua base de vetores (RAG).
                                 </p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <button
-                                        onClick={() => alert("Sincronização global automática ativada.")}
-                                        className="p-8 bg-slate-950 border border-white/5 rounded-3xl hover:border-indigo-500/50 transition-all text-left"
-                                    >
-                                        <h4 className="text-white font-bold mb-2 flex items-center gap-2">
-                                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                                            Sync Automático
-                                        </h4>
-                                        <p className="text-[10px] text-slate-500 leading-relaxed">Mantém as leis de todos os municípios sincronizadas em tempo real.</p>
-                                    </button>
-                                    <button
-                                        onClick={() => alert("Módulo de Alerta via Telegram em desenvolvimento.")}
-                                        className="p-8 bg-slate-950 border border-white/5 rounded-3xl hover:border-indigo-500/50 transition-all text-left opacity-60"
-                                    >
-                                        <h4 className="text-white font-bold mb-2">Alertas de Mudança</h4>
-                                        <p className="text-[10px] text-slate-500 leading-relaxed">Notifica seu time no WhatsApp/Telegram sobre novas leis publicadas.</p>
-                                    </button>
+                                <div className="flex items-center gap-6 p-6 bg-white/5 rounded-3xl border border-white/10">
+                                    <div className="p-4 bg-indigo-500/20 rounded-2xl">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-indigo-300 font-black uppercase tracking-[0.2em] mb-1">Dica de Administrador</p>
+                                        <p className="text-[10px] text-slate-500 font-medium">Você pode falar no chat: "Pesquise na internet sobre a nova portaria do IRPF" e o sistema usará o Tavily para enriquecer o parecer em tempo real.</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>

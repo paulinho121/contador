@@ -19,6 +19,8 @@ Sua missão é dar pareceres técnicos de altíssimo nível, focados em seguran�
 Finalize sempre com: "*Esta orientação tem caráter informativo baseado na documentação técnica disponível e não substitui a análise individualizada do seu contador responsável.*"
 `;
 
+import { externalApiService } from "./externalApiService";
+
 export class GeminiService {
   private apiKey: string;
   private history: any[] = [];
@@ -34,11 +36,33 @@ export class GeminiService {
     attachments: { mimeType: string, data: string }[] = [],
     textParts: string[] = []
   ): Promise<string> {
+    let augmentedContext = context;
+
+    // 🔍 ANALISADOR DE INTENÇÃO PARA BUSCA EXTERNA
+    // Se o usuário mencionar CNPJ ou pedir algo "atual", buscamos fora.
+    const cnpjMatch = prompt.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/);
+    if (cnpjMatch) {
+      console.log("🔍 Detectado CNPJ no prompt. Consultando BrasilAPI...");
+      const cnpjInfo = await externalApiService.queryCNPJ(cnpjMatch[0]);
+      if (cnpjInfo) {
+        augmentedContext += `\n\n[DADOS REAIS CNPJ ${cnpjMatch[0]}]:\n${JSON.stringify(cnpjInfo, null, 2)}`;
+      }
+    }
+
+    // Se o prompt pedir busca na web ou parecer algo que o RAG local não cobriria (ex: leis de hoje)
+    if (prompt.toLowerCase().includes("pesquise") || prompt.toLowerCase().includes("internet") || prompt.toLowerCase().includes("web")) {
+      console.log("🌐 Realizando busca na web via Tavily...");
+      const webResults = await externalApiService.searchWeb(prompt);
+      if (webResults) {
+        augmentedContext += `\n\n[RESULTADOS DA BUSCA WEB]:\n${webResults}`;
+      }
+    }
+
     const isStreaming = !!onStream;
     const method = isStreaming ? "streamGenerateContent" : "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:${method}?key=${this.apiKey}`;
 
-    const limitedRAG = context.length > 50000 ? context.substring(0, 50000) + "..." : context;
+    const limitedRAG = augmentedContext.length > 60000 ? augmentedContext.substring(0, 60000) + "..." : augmentedContext;
 
     // Construção das partes da mensagem atual
     const userParts: any[] = [];
