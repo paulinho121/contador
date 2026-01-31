@@ -5,10 +5,10 @@ Você é o "Dr. Contador", um CONSULTOR TRIBUTÁRIO E CONTÁBIL DE ELITE.
 Sua missão é dar pareceres técnicos de altíssimo nível, focados em segurança jurídica e elisão fiscal estratégica.
 
 ### 🛡️ PROTOCOLO DE CONVERSA (CRÍTICO)
-1. **FIM DAS RESPOSTAS GENÉRICAS**: Se houver dados no [DADOS REAIS DA WEB...] ou [BASE DE CONHECIMENTO], você DEVE usar os números, alíquotas e fatos lá contidos. Proibido dizer "varre conforme o serviço" se o dado estiver presente. Seja específico ou diga que vai buscar.
-2. **MEMÓRIA ATIVA**: Se o usuário fizer pedidos curtos como "faça uma tabela", "explique melhor" ou "prossiga", você DEVE olhar o histórico imediato da conversa.
-3. **ESPECIFICIDADE ESTADUAL E MUNICIPAL**: Use IMEDIATAMENTE referências a prefeituras e estados. Cite Leis ou Decretos reais.
-4. **BASE DE CONHECIMENTO (RAG)**: Use prioritariamente a [BASE DE CONHECIMENTO] e [DADOS REAIS DA WEB].
+1. **FIM DAS RESPOSTAS GENÉRICAS**: Se houver dados no [DADOS REAIS DA WEB...] ou [BASE DE CONHECIMENTO], você DEVE usar os números, alíquotas e fatos lá contidos. Proibido dizer "varre conforme o serviço" se o dado estiver presente.
+2. **PROIBIDO EXEMPLOS IRRELEVANTES**: Se o usuário perguntou sobre uma cidade (ex: Maracanaú), NUNCA use Barueri, São Paulo ou Curitiba como exemplos. Se não souber o dado de Maracanaú, diga que não encontrou na base, mas NÃO cite outras cidades a menos que solicitado.
+3. **MEMÓRIA DE LOCALIZAÇÃO**: Mantenha o foco na cidade mencionada anteriormente no histórico.
+4. **ESPECIFICIDADE**: Use IMEDIATAMENTE referências a prefeituras e estados citados.
 
 ### ✅ ESTRUTURA DO PARECER PREMIUM
 1. 🎓 **Parecer Estratégico**: Resumo executivo para decisão.
@@ -39,8 +39,20 @@ export class GeminiService {
   ): Promise<string> {
     let augmentedContext = context;
 
-    // 🔍 ANALISADOR DE INTENÇÃO PARA BUSCA EXTERNA
+    // 🔍 ANALISADOR DE INTENÇÃO E CONTEXTO GEOGRÁFICO
     const promptLower = prompt.toLowerCase();
+
+    // Tenta recuperar a cidade do histórico se não estiver no prompt atual
+    let detectedLocation = "";
+    const locationMatch = prompt.match(/(?:em|de|do|da|para)\s+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+)*)/);
+    if (locationMatch) {
+      detectedLocation = locationMatch[1];
+    } else {
+      // Busca no histórico (últimas 4 mensagens) por uma cidade mencionada
+      const historyText = this.history.slice(-4).map(h => h.parts[0].text).join(" ");
+      const historyMatch = historyText.match(/(?:em|de|do|da|para|sobre)\s+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+)*)/i);
+      if (historyMatch) detectedLocation = historyMatch[1];
+    }
 
     // Evita busca web para prompts gigantes (evita erro 400 no Tavily)
     const isVeryLongPrompt = prompt.length > 500;
@@ -55,19 +67,18 @@ export class GeminiService {
     }
 
     // Gatilhos de busca (Qualquer tributo ou menção a cidade/estado que não seja geral)
-    const hotTopics = ["iss", "ipva", "iptu", "itcmd", "itbi", "alíquota", "aliquota", "tabela", "vencimento", "prazo", "reforma tributária", "uau", "ufesp", "ufir", "selic", "icms", "pis", "cofins"];
+    const hotTopics = ["iss", "ipva", "iptu", "itcmd", "itbi", "alíquota", "aliquota", "tabela", "vencimento", "prazo", "reforma tributária", "uau", "ufesp", "ufir", "selic", "icms", "pis", "cofins", "taxa"];
     const hasTaxQuery = hotTopics.some(t => promptLower.includes(t));
-    const hasLocation = promptLower.includes(" em ") || promptLower.includes(" de ") || promptLower.includes(" do ") || promptLower.includes(" da ");
 
-    if (!skipWebSearch && !isVeryLongPrompt && (hasTaxQuery || promptLower.includes("pesquise") || promptLower.includes("internet") || (promptLower.includes("valor") && hasLocation))) {
-      console.log("🌐 Gatilho de busca web (MODO AGRESSIVO) acionado para: " + prompt);
+    if (!skipWebSearch && !isVeryLongPrompt && (hasTaxQuery || promptLower.includes("pesquise") || promptLower.includes("internet") || detectedLocation)) {
+      console.log(`🌐 Gatilho web para [${detectedLocation || 'Geral'}]: ${prompt}`);
 
       // Refinamos a busca apenas com as palavras chave (primeiros 150 caracteres + contexto)
-      const refinedQuery = `legislação tributária alíquota ${prompt.substring(0, 150)}`;
+      const refinedQuery = `alíquota atualizada ${hasTaxQuery ? hotTopics.find(t => promptLower.includes(t)) : 'tributos'} em ${detectedLocation || prompt}`;
       const webResults = await externalApiService.searchWeb(refinedQuery);
 
       if (webResults) {
-        augmentedContext += `\n\n[DADOS REAIS DA WEB EM TEMPO REAL - PRIORIDADE MÁXIMA]:\n${webResults}\n\n⚠️ INSTRUÇÃO: Se houver valores numéricos ou alíquotas acima, você DEVE usá-las. Proibido dar resposta genérica se a informação estiver presente nesses dados.`;
+        augmentedContext += `\n\n[DADOS REAIS DA WEB - FOCO EM ${detectedLocation || 'SOLICITAÇÃO'}]:\n${webResults}\n\n⚠️ REGRA RÍGIDA: Se o usuário estiver falando de ${detectedLocation}, PROIBIDO citar exemplos de Barueri ou São Paulo. Use apenas os dados de ${detectedLocation} encontrados acima.`;
       }
     }
 
